@@ -6,12 +6,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::{RwLock, Mutex, watch, mpsc, broadcast};
-use tokio::time::{timeout, sleep};
+use tokio::sync::{broadcast, mpsc, watch, Mutex, RwLock};
+use tokio::time::{sleep, timeout};
 
+use crate::client::mcp_client::{ClientConfig, McpClient};
 use crate::core::error::{McpError, McpResult};
-use crate::protocol::{types::*, messages::*};
-use crate::client::mcp_client::{McpClient, ClientConfig};
+use crate::protocol::{messages::*, types::*};
 use crate::transport::traits::Transport;
 
 /// Session state
@@ -97,7 +97,7 @@ impl ClientSession {
     /// Create a new client session
     pub fn new(client: McpClient) -> Self {
         let (state_tx, state_rx) = watch::channel(SessionState::Disconnected);
-        
+
         Self {
             client: Arc::new(Mutex::new(client)),
             config: SessionConfig::default(),
@@ -165,12 +165,13 @@ impl ClientSession {
         let result = timeout(
             Duration::from_millis(self.config.connection_timeout_ms),
             connect_future,
-        ).await;
+        )
+        .await;
 
         match result {
             Ok(Ok(init_result)) => {
                 self.transition_state(SessionState::Connected).await?;
-                
+
                 // Record connection time
                 {
                     let mut connected_at = self.connected_at.write().await;
@@ -189,12 +190,14 @@ impl ClientSession {
                 Ok(init_result)
             }
             Ok(Err(error)) => {
-                self.transition_state(SessionState::Failed(error.to_string())).await?;
+                self.transition_state(SessionState::Failed(error.to_string()))
+                    .await?;
                 Err(error)
             }
             Err(_) => {
                 let error = McpError::Connection("Connection timeout".to_string());
-                self.transition_state(SessionState::Failed(error.to_string())).await?;
+                self.transition_state(SessionState::Failed(error.to_string()))
+                    .await?;
                 Err(error)
             }
         }
@@ -224,18 +227,24 @@ impl ClientSession {
     }
 
     /// Reconnect to the server
-    pub async fn reconnect<T>(&self, transport_factory: impl Fn() -> T) -> McpResult<InitializeResult>
+    pub async fn reconnect<T>(
+        &self,
+        transport_factory: impl Fn() -> T,
+    ) -> McpResult<InitializeResult>
     where
         T: Transport + 'static,
     {
         if !self.config.auto_reconnect {
-            return Err(McpError::Connection("Auto-reconnect is disabled".to_string()));
+            return Err(McpError::Connection(
+                "Auto-reconnect is disabled".to_string(),
+            ));
         }
 
         let mut attempts = self.reconnect_attempts.lock().await;
         if *attempts >= self.config.max_reconnect_attempts {
             let error = McpError::Connection("Max reconnection attempts exceeded".to_string());
-            self.transition_state(SessionState::Failed(error.to_string())).await?;
+            self.transition_state(SessionState::Failed(error.to_string()))
+                .await?;
             return Err(error);
         }
 
@@ -247,8 +256,11 @@ impl ClientSession {
 
         // Calculate reconnection delay with exponential backoff
         let delay = std::cmp::min(
-            (self.config.reconnect_delay_ms as f64 
-                * self.config.reconnect_backoff.powi(current_attempts as i32 - 1)) as u64,
+            (self.config.reconnect_delay_ms as f64
+                * self
+                    .config
+                    .reconnect_backoff
+                    .powi(current_attempts as i32 - 1)) as u64,
             self.config.max_reconnect_delay_ms,
         );
 
@@ -274,7 +286,8 @@ impl ClientSession {
 
     /// Start background tasks (notification handling, heartbeat)
     async fn start_background_tasks(&self) -> McpResult<()> {
-        let (shutdown_tx, shutdown_rx): (broadcast::Sender<()>, broadcast::Receiver<()>) = broadcast::channel(16);
+        let (shutdown_tx, shutdown_rx): (broadcast::Sender<()>, broadcast::Receiver<()>) =
+            broadcast::channel(16);
         {
             let mut shutdown_guard = self.shutdown_tx.lock().await;
             *shutdown_guard = Some(mpsc::channel(1).0); // Store a dummy for interface compatibility
@@ -285,7 +298,7 @@ impl ClientSession {
             let client = self.client.clone();
             let handlers = self.notification_handlers.clone();
             let mut shutdown_rx_clone = shutdown_rx.resubscribe();
-            
+
             tokio::spawn(async move {
                 loop {
                     tokio::select! {
@@ -323,10 +336,10 @@ impl ClientSession {
             let state = self.state.clone();
             let state_tx = self.state_tx.clone();
             let mut shutdown_rx_clone = shutdown_rx.resubscribe();
-            
+
             tokio::spawn(async move {
                 let mut interval = tokio::time::interval(heartbeat_interval);
-                
+
                 loop {
                     tokio::select! {
                         _ = shutdown_rx_clone.recv() => break,
@@ -392,7 +405,11 @@ pub struct LoggingNotificationHandler;
 
 impl NotificationHandler for LoggingNotificationHandler {
     fn handle_notification(&self, notification: JsonRpcNotification) {
-        tracing::info!("Received notification: {} {:?}", notification.method, notification.params);
+        tracing::info!(
+            "Received notification: {} {:?}",
+            notification.method,
+            notification.params
+        );
     }
 }
 
@@ -472,7 +489,11 @@ impl NotificationHandler for ProgressHandler {
         if notification.method == methods::PROGRESS {
             if let Some(params) = notification.params {
                 if let Ok(progress_params) = serde_json::from_value::<ProgressParams>(params) {
-                    (self.callback)(progress_params.progress_token, progress_params.progress, progress_params.total);
+                    (self.callback)(
+                        progress_params.progress_token,
+                        progress_params.progress,
+                        progress_params.total,
+                    );
                 }
             }
         }
@@ -557,7 +578,7 @@ mod tests {
     async fn test_session_creation() {
         let client = McpClient::new("test-client".to_string(), "1.0.0".to_string());
         let session = ClientSession::new(client);
-        
+
         assert_eq!(session.state().await, SessionState::Disconnected);
         assert!(!session.is_connected().await);
         assert!(session.uptime().await.is_none());
@@ -567,10 +588,10 @@ mod tests {
     async fn test_session_connection() {
         let client = McpClient::new("test-client".to_string(), "1.0.0".to_string());
         let session = ClientSession::new(client);
-        
+
         let transport = MockTransport;
         let result = session.connect(transport).await;
-        
+
         assert!(result.is_ok());
         assert_eq!(session.state().await, SessionState::Connected);
         assert!(session.is_connected().await);
@@ -581,12 +602,12 @@ mod tests {
     async fn test_session_disconnect() {
         let client = McpClient::new("test-client".to_string(), "1.0.0".to_string());
         let session = ClientSession::new(client);
-        
+
         // Connect first
         let transport = MockTransport;
         session.connect(transport).await.unwrap();
         assert!(session.is_connected().await);
-        
+
         // Then disconnect
         session.disconnect().await.unwrap();
         assert_eq!(session.state().await, SessionState::Disconnected);
@@ -598,25 +619,33 @@ mod tests {
     async fn test_notification_handlers() {
         let client = McpClient::new("test-client".to_string(), "1.0.0".to_string());
         let session = ClientSession::new(client);
-        
+
         // Add a logging notification handler
-        session.add_notification_handler(LoggingNotificationHandler).await;
-        
+        session
+            .add_notification_handler(LoggingNotificationHandler)
+            .await;
+
         // Add a resource update handler
-        session.add_notification_handler(ResourceUpdateHandler::new(|uri| {
-            println!("Resource updated: {}", uri);
-        })).await;
-        
+        session
+            .add_notification_handler(ResourceUpdateHandler::new(|uri| {
+                println!("Resource updated: {}", uri);
+            }))
+            .await;
+
         // Add a tool list changed handler
-        session.add_notification_handler(ToolListChangedHandler::new(|| {
-            println!("Tool list changed");
-        })).await;
-        
+        session
+            .add_notification_handler(ToolListChangedHandler::new(|| {
+                println!("Tool list changed");
+            }))
+            .await;
+
         // Add a progress handler
-        session.add_notification_handler(ProgressHandler::new(|token, progress, total| {
-            println!("Progress {}: {} / {:?}", token, progress, total);
-        })).await;
-        
+        session
+            .add_notification_handler(ProgressHandler::new(|token, progress, total| {
+                println!("Progress {}: {} / {:?}", token, progress, total);
+            }))
+            .await;
+
         let handlers = session.notification_handlers.read().await;
         assert_eq!(handlers.len(), 4);
     }
@@ -625,7 +654,7 @@ mod tests {
     async fn test_session_stats() {
         let client = McpClient::new("test-client".to_string(), "1.0.0".to_string());
         let session = ClientSession::new(client);
-        
+
         let stats = session.stats().await;
         assert_eq!(stats.state, SessionState::Disconnected);
         assert!(stats.uptime.is_none());
@@ -643,7 +672,7 @@ mod tests {
             ..Default::default()
         };
         let session = ClientSession::with_config(client, config.clone());
-        
+
         assert_eq!(session.config().auto_reconnect, false);
         assert_eq!(session.config().max_reconnect_attempts, 10);
         assert_eq!(session.config().reconnect_delay_ms, 2000);
@@ -653,15 +682,18 @@ mod tests {
     async fn test_state_subscription() {
         let client = McpClient::new("test-client".to_string(), "1.0.0".to_string());
         let session = ClientSession::new(client);
-        
+
         let mut state_rx = session.subscribe_state_changes();
-        
+
         // Initial state
         assert_eq!(*state_rx.borrow(), SessionState::Disconnected);
-        
+
         // Change state
-        session.transition_state(SessionState::Connecting).await.unwrap();
-        
+        session
+            .transition_state(SessionState::Connecting)
+            .await
+            .unwrap();
+
         // Wait for change
         state_rx.changed().await.unwrap();
         assert_eq!(*state_rx.borrow(), SessionState::Connecting);

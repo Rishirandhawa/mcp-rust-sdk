@@ -8,7 +8,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 use crate::core::error::{McpError, McpResult};
-use crate::protocol::types::{Content, ToolResult, ToolInfo};
+use crate::protocol::types::{Content, ToolInfo, ToolResult};
 
 /// Trait for implementing tool handlers
 #[async_trait]
@@ -42,13 +42,13 @@ impl Tool {
     /// * `input_schema` - JSON schema describing the input parameters
     /// * `handler` - Implementation of the tool's functionality
     pub fn new<H>(
-        name: String, 
-        description: Option<String>, 
-        input_schema: Value, 
-        handler: H
-    ) -> Self 
-    where 
-        H: ToolHandler + 'static 
+        name: String,
+        description: Option<String>,
+        input_schema: Value,
+        handler: H,
+    ) -> Self
+    where
+        H: ToolHandler + 'static,
     {
         Self {
             info: ToolInfo {
@@ -85,7 +85,10 @@ impl Tool {
     /// Result containing the tool execution result or an error
     pub async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<ToolResult> {
         if !self.enabled {
-            return Err(McpError::validation(format!("Tool '{}' is disabled", self.info.name)));
+            return Err(McpError::validation(format!(
+                "Tool '{}' is disabled",
+                self.info.name
+            )));
         }
 
         self.handler.call(arguments).await
@@ -107,7 +110,7 @@ impl std::fmt::Debug for Tool {
 /// ```rust
 /// use mcp_rust_sdk::{tool, core::tool::ToolHandler};
 /// use serde_json::json;
-/// 
+///
 /// struct MyHandler;
 /// #[async_trait::async_trait]
 /// impl ToolHandler for MyHandler {
@@ -116,7 +119,7 @@ impl std::fmt::Debug for Tool {
 ///         todo!()
 ///     }
 /// }
-/// 
+///
 /// let tool = tool!(
 ///     "my_tool",
 ///     "A sample tool",
@@ -132,12 +135,7 @@ impl std::fmt::Debug for Tool {
 #[macro_export]
 macro_rules! tool {
     ($name:expr, $schema:expr, $handler:expr) => {
-        $crate::core::tool::Tool::new(
-            $name.to_string(),
-            None,
-            $schema,
-            $handler,
-        )
+        $crate::core::tool::Tool::new($name.to_string(), None, $schema, $handler)
     };
     ($name:expr, $description:expr, $schema:expr, $handler:expr) => {
         $crate::core::tool::Tool::new(
@@ -163,7 +161,9 @@ impl ToolHandler for EchoTool {
             .unwrap_or("Hello, World!");
 
         Ok(ToolResult {
-            content: vec![Content::Text { text: message.to_string() }],
+            content: vec![Content::Text {
+                text: message.to_string(),
+            }],
             is_error: None,
         })
     }
@@ -179,16 +179,18 @@ impl ToolHandler for AdditionTool {
             .get("a")
             .and_then(|v| v.as_f64())
             .ok_or_else(|| McpError::validation("Missing or invalid 'a' parameter"))?;
-        
+
         let b = arguments
             .get("b")
             .and_then(|v| v.as_f64())
             .ok_or_else(|| McpError::validation("Missing or invalid 'b' parameter"))?;
 
         let result = a + b;
-        
+
         Ok(ToolResult {
-            content: vec![Content::Text { text: result.to_string() }],
+            content: vec![Content::Text {
+                text: result.to_string(),
+            }],
             is_error: None,
         })
     }
@@ -201,14 +203,16 @@ pub struct TimestampTool;
 impl ToolHandler for TimestampTool {
     async fn call(&self, _arguments: HashMap<String, Value>) -> McpResult<ToolResult> {
         use std::time::{SystemTime, UNIX_EPOCH};
-        
+
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|e| McpError::internal(e.to_string()))?
             .as_secs();
 
         Ok(ToolResult {
-            content: vec![Content::Text { text: timestamp.to_string() }],
+            content: vec![Content::Text {
+                text: timestamp.to_string(),
+            }],
             is_error: None,
         })
     }
@@ -270,7 +274,7 @@ mod tests {
         let tool = EchoTool;
         let mut args = HashMap::new();
         args.insert("message".to_string(), json!("test message"));
-        
+
         let result = tool.call(args).await.unwrap();
         match &result.content[0] {
             Content::Text { text } => assert_eq!(text, "test message"),
@@ -284,7 +288,7 @@ mod tests {
         let mut args = HashMap::new();
         args.insert("a".to_string(), json!(5.0));
         args.insert("b".to_string(), json!(3.0));
-        
+
         let result = tool.call(args).await.unwrap();
         match &result.content[0] {
             Content::Text { text } => assert_eq!(text, "8"),
@@ -300,7 +304,7 @@ mod tests {
             json!({"type": "object"}),
             EchoTool,
         );
-        
+
         assert_eq!(tool.info.name, "test_tool");
         assert_eq!(tool.info.description, Some("Test tool".to_string()));
         assert!(tool.is_enabled());
@@ -314,12 +318,12 @@ mod tests {
             json!({"type": "object"}),
             EchoTool,
         );
-        
+
         assert!(tool.is_enabled());
-        
+
         tool.disable();
         assert!(!tool.is_enabled());
-        
+
         tool.enable();
         assert!(tool.is_enabled());
     }
@@ -332,9 +336,9 @@ mod tests {
             json!({"type": "object"}),
             EchoTool,
         );
-        
+
         tool.disable();
-        
+
         let result = tool.call(HashMap::new()).await;
         assert!(result.is_err());
         match result.unwrap_err() {

@@ -33,7 +33,11 @@ pub trait ResourceHandler: Send + Sync {
     ///
     /// # Returns
     /// Result containing the resource content or an error
-    async fn read(&self, uri: &str, params: &HashMap<String, String>) -> McpResult<Vec<ResourceContent>>;
+    async fn read(
+        &self,
+        uri: &str,
+        params: &HashMap<String, String>,
+    ) -> McpResult<Vec<ResourceContent>>;
 
     /// List all available resources
     ///
@@ -50,7 +54,10 @@ pub trait ResourceHandler: Send + Sync {
     /// Result indicating success or an error
     async fn subscribe(&self, uri: &str) -> McpResult<()> {
         // Default implementation - subscription not supported
-        Err(McpError::protocol(format!("Subscription not supported for resource: {}", uri)))
+        Err(McpError::protocol(format!(
+            "Subscription not supported for resource: {}",
+            uri
+        )))
     }
 
     /// Unsubscribe from changes in a resource (optional)
@@ -62,7 +69,10 @@ pub trait ResourceHandler: Send + Sync {
     /// Result indicating success or an error
     async fn unsubscribe(&self, uri: &str) -> McpResult<()> {
         // Default implementation - subscription not supported
-        Err(McpError::protocol(format!("Subscription not supported for resource: {}", uri)))
+        Err(McpError::protocol(format!(
+            "Subscription not supported for resource: {}",
+            uri
+        )))
     }
 }
 
@@ -84,9 +94,9 @@ impl Resource {
     /// # Arguments
     /// * `info` - Information about the resource
     /// * `handler` - Implementation of the resource's functionality
-    pub fn new<H>(info: ResourceInfo, handler: H) -> Self 
-    where 
-        H: ResourceHandler + 'static 
+    pub fn new<H>(info: ResourceInfo, handler: H) -> Self
+    where
+        H: ResourceHandler + 'static,
     {
         Self {
             info,
@@ -101,9 +111,9 @@ impl Resource {
     /// # Arguments
     /// * `template` - Template for the resource
     /// * `handler` - Implementation of the resource's functionality
-    pub fn with_template<H>(template: ResourceTemplate, handler: H) -> Self 
-    where 
-        H: ResourceHandler + 'static 
+    pub fn with_template<H>(template: ResourceTemplate, handler: H) -> Self
+    where
+        H: ResourceHandler + 'static,
     {
         let info = ResourceInfo {
             uri: template.uri_template.clone(),
@@ -111,7 +121,7 @@ impl Resource {
             description: template.description.clone(),
             mime_type: template.mime_type.clone(),
         };
-        
+
         Self {
             info,
             handler: Box::new(handler),
@@ -143,9 +153,16 @@ impl Resource {
     ///
     /// # Returns
     /// Result containing the resource content or an error
-    pub async fn read(&self, uri: &str, params: &HashMap<String, String>) -> McpResult<Vec<ResourceContent>> {
+    pub async fn read(
+        &self,
+        uri: &str,
+        params: &HashMap<String, String>,
+    ) -> McpResult<Vec<ResourceContent>> {
         if !self.enabled {
-            return Err(McpError::validation(format!("Resource '{}' is disabled", self.info.name)));
+            return Err(McpError::validation(format!(
+                "Resource '{}' is disabled",
+                self.info.name
+            )));
         }
 
         self.handler.read(uri, params).await
@@ -163,7 +180,10 @@ impl Resource {
     /// Subscribe to resource changes
     pub async fn subscribe(&self, uri: &str) -> McpResult<()> {
         if !self.enabled {
-            return Err(McpError::validation(format!("Resource '{}' is disabled", self.info.name)));
+            return Err(McpError::validation(format!(
+                "Resource '{}' is disabled",
+                self.info.name
+            )));
         }
 
         self.handler.subscribe(uri).await
@@ -172,7 +192,10 @@ impl Resource {
     /// Unsubscribe from resource changes
     pub async fn unsubscribe(&self, uri: &str) -> McpResult<()> {
         if !self.enabled {
-            return Err(McpError::validation(format!("Resource '{}' is disabled", self.info.name)));
+            return Err(McpError::validation(format!(
+                "Resource '{}' is disabled",
+                self.info.name
+            )));
         }
 
         self.handler.unsubscribe(uri).await
@@ -220,7 +243,11 @@ impl TextResource {
 
 #[async_trait]
 impl ResourceHandler for TextResource {
-    async fn read(&self, uri: &str, _params: &HashMap<String, String>) -> McpResult<Vec<ResourceContent>> {
+    async fn read(
+        &self,
+        uri: &str,
+        _params: &HashMap<String, String>,
+    ) -> McpResult<Vec<ResourceContent>> {
         Ok(vec![ResourceContent {
             uri: uri.to_string(),
             mime_type: Some(self.mime_type.clone()),
@@ -283,7 +310,11 @@ impl FileSystemResource {
 
 #[async_trait]
 impl ResourceHandler for FileSystemResource {
-    async fn read(&self, uri: &str, _params: &HashMap<String, String>) -> McpResult<Vec<ResourceContent>> {
+    async fn read(
+        &self,
+        uri: &str,
+        _params: &HashMap<String, String>,
+    ) -> McpResult<Vec<ResourceContent>> {
         // Extract file path from URI (assuming file:// scheme or relative path)
         let file_path = if uri.starts_with("file://") {
             uri.strip_prefix("file://").unwrap_or(uri)
@@ -292,13 +323,13 @@ impl ResourceHandler for FileSystemResource {
         };
 
         let full_path = self.base_path.join(file_path);
-        
+
         // Security check - ensure path is within base directory
-        let canonical_base = self.base_path.canonicalize()
-            .map_err(|e| McpError::io(e))?;
-        let canonical_target = full_path.canonicalize()
+        let canonical_base = self.base_path.canonicalize().map_err(|e| McpError::io(e))?;
+        let canonical_target = full_path
+            .canonicalize()
             .map_err(|_| McpError::ResourceNotFound(uri.to_string()))?;
-        
+
         if !canonical_target.starts_with(&canonical_base) {
             return Err(McpError::validation("Path outside of allowed directory"));
         }
@@ -307,7 +338,8 @@ impl ResourceHandler for FileSystemResource {
             return Err(McpError::validation("File type not allowed"));
         }
 
-        let content = tokio::fs::read_to_string(&canonical_target).await
+        let content = tokio::fs::read_to_string(&canonical_target)
+            .await
             .map_err(|_| McpError::ResourceNotFound(uri.to_string()))?;
 
         let mime_type = self.get_mime_type(&canonical_target);
@@ -325,25 +357,27 @@ impl ResourceHandler for FileSystemResource {
         let mut stack = vec![self.base_path.clone()];
 
         while let Some(dir_path) = stack.pop() {
-            let mut dir = tokio::fs::read_dir(&dir_path).await
+            let mut dir = tokio::fs::read_dir(&dir_path)
+                .await
                 .map_err(|e| McpError::io(e))?;
 
-            while let Some(entry) = dir.next_entry().await
-                .map_err(|e| McpError::io(e))? {
+            while let Some(entry) = dir.next_entry().await.map_err(|e| McpError::io(e))? {
                 let path = entry.path();
-                
+
                 if path.is_dir() {
                     stack.push(path);
                 } else if self.is_allowed_file(&path) {
-                    let relative_path = path.strip_prefix(&self.base_path)
+                    let relative_path = path
+                        .strip_prefix(&self.base_path)
                         .map_err(|_| McpError::internal("Path computation error"))?;
-                    
+
                     let uri = format!("file://{}", relative_path.display());
-                    let name = path.file_name()
+                    let name = path
+                        .file_name()
                         .and_then(|n| n.to_str())
                         .unwrap_or("unnamed")
                         .to_string();
-                    
+
                     resources.push(ResourceInfo {
                         uri,
                         name,
@@ -411,9 +445,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_text_resource() {
-        let resource = TextResource::new("Hello, World!".to_string(), Some("text/plain".to_string()));
+        let resource =
+            TextResource::new("Hello, World!".to_string(), Some("text/plain".to_string()));
         let params = HashMap::new();
-        
+
         let content = resource.read("test://resource", &params).await.unwrap();
         assert_eq!(content.len(), 1);
         assert_eq!(content[0].text, Some("Hello, World!".to_string()));
@@ -428,7 +463,7 @@ mod tests {
             description: Some("A test resource".to_string()),
             mime_type: Some("text/plain".to_string()),
         };
-        
+
         let resource = Resource::new(info.clone(), TextResource::new("test".to_string(), None));
         assert_eq!(resource.info, info);
         assert!(resource.is_enabled());
@@ -442,8 +477,11 @@ mod tests {
             description: Some("A test template".to_string()),
             mime_type: Some("text/plain".to_string()),
         };
-        
-        let resource = Resource::with_template(template.clone(), TextResource::new("test".to_string(), None));
+
+        let resource = Resource::with_template(
+            template.clone(),
+            TextResource::new("test".to_string(), None),
+        );
         assert_eq!(resource.template, Some(template));
     }
 
@@ -455,9 +493,10 @@ mod tests {
             description: None,
             mime_type: None,
         };
-        
-        let resource = Resource::with_template(template, TextResource::new("test".to_string(), None));
-        
+
+        let resource =
+            Resource::with_template(template, TextResource::new("test".to_string(), None));
+
         // Simple test - real implementation would need proper URI template matching
         assert!(resource.matches_uri("test://resource/123"));
         assert!(!resource.matches_uri("other://resource/123"));
@@ -472,7 +511,10 @@ mod tests {
 
         assert_eq!(resource.info.uri, "test://resource");
         assert_eq!(resource.info.name, "Test Resource");
-        assert_eq!(resource.info.description, Some("A test resource".to_string()));
+        assert_eq!(
+            resource.info.description,
+            Some("A test resource".to_string())
+        );
         assert_eq!(resource.info.mime_type, Some("text/plain".to_string()));
     }
 }

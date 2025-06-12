@@ -13,12 +13,7 @@ use axum::{
 };
 use reqwest::Client;
 use serde_json::Value;
-use std::{
-    collections::HashMap,
-    convert::Infallible,
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::HashMap, convert::Infallible, sync::Arc, time::Duration};
 use tokio::sync::{broadcast, mpsc, Mutex, RwLock};
 
 #[cfg(all(feature = "futures", feature = "tokio-stream"))]
@@ -31,8 +26,8 @@ use tower::ServiceBuilder;
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::core::error::{McpError, McpResult};
-use crate::protocol::types::{JsonRpcRequest, JsonRpcResponse, JsonRpcNotification};
-use crate::transport::traits::{Transport, ServerTransport, TransportConfig, ConnectionState};
+use crate::protocol::types::{JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
+use crate::transport::traits::{ConnectionState, ServerTransport, Transport, TransportConfig};
 
 // ============================================================================
 // HTTP Client Transport
@@ -83,14 +78,14 @@ impl HttpClientTransport {
     ) -> McpResult<Self> {
         let client_builder = Client::builder()
             .timeout(Duration::from_millis(
-                config.read_timeout_ms.unwrap_or(60_000)
+                config.read_timeout_ms.unwrap_or(60_000),
             ))
             .connect_timeout(Duration::from_millis(
-                config.connect_timeout_ms.unwrap_or(30_000)
+                config.connect_timeout_ms.unwrap_or(30_000),
             ));
 
         // Note: reqwest doesn't have a gzip() method, it's enabled by default with features
-        
+
         let client = client_builder
             .build()
             .map_err(|e| McpError::Http(format!("Failed to create HTTP client: {}", e)))?;
@@ -116,14 +111,16 @@ impl HttpClientTransport {
             let sse_url = sse_url.as_ref().to_string();
             let client_clone = client.clone();
             let headers_clone = headers.clone();
-            
+
             tokio::spawn(async move {
                 if let Err(e) = Self::handle_sse_stream(
                     client_clone,
                     sse_url,
                     headers_clone,
                     notification_sender,
-                ).await {
+                )
+                .await
+                {
                     tracing::error!("SSE stream error: {}", e);
                 }
             });
@@ -172,7 +169,9 @@ impl HttpClientTransport {
                         for line in text.lines() {
                             if line.starts_with("data: ") {
                                 let data = &line[6..]; // Remove "data: " prefix
-                                if let Ok(notification) = serde_json::from_str::<JsonRpcNotification>(data) {
+                                if let Ok(notification) =
+                                    serde_json::from_str::<JsonRpcNotification>(data)
+                                {
                                     if notification_sender.send(notification).is_err() {
                                         tracing::debug!("Notification receiver dropped");
                                         return Ok(());
@@ -208,7 +207,7 @@ impl HttpClientTransport {
 impl Transport for HttpClientTransport {
     async fn send_request(&mut self, request: JsonRpcRequest) -> McpResult<JsonRpcResponse> {
         let url = format!("{}/mcp", self.base_url);
-        
+
         let mut http_request = self.client.post(&url);
         for (name, value) in self.headers.iter() {
             let name_str = name.as_str();
@@ -240,7 +239,7 @@ impl Transport for HttpClientTransport {
 
     async fn send_notification(&mut self, notification: JsonRpcNotification) -> McpResult<()> {
         let url = format!("{}/mcp/notify", self.base_url);
-        
+
         let mut http_request = self.client.post(&url);
         for (name, value) in self.headers.iter() {
             let name_str = name.as_str();
@@ -270,9 +269,9 @@ impl Transport for HttpClientTransport {
             match receiver.try_recv() {
                 Ok(notification) => Ok(Some(notification)),
                 Err(mpsc::error::TryRecvError::Empty) => Ok(None),
-                Err(mpsc::error::TryRecvError::Disconnected) => {
-                    Err(McpError::Http("Notification channel disconnected".to_string()))
-                }
+                Err(mpsc::error::TryRecvError::Disconnected) => Err(McpError::Http(
+                    "Notification channel disconnected".to_string(),
+                )),
             }
         } else {
             Ok(None)
@@ -305,7 +304,11 @@ impl Transport for HttpClientTransport {
 #[derive(Clone)]
 struct HttpServerState {
     notification_sender: broadcast::Sender<JsonRpcNotification>,
-    request_handler: Option<Arc<dyn Fn(JsonRpcRequest) -> tokio::sync::oneshot::Receiver<JsonRpcResponse> + Send + Sync>>,
+    request_handler: Option<
+        Arc<
+            dyn Fn(JsonRpcRequest) -> tokio::sync::oneshot::Receiver<JsonRpcResponse> + Send + Sync,
+        >,
+    >,
 }
 
 /// HTTP transport for MCP servers
@@ -361,7 +364,10 @@ impl HttpServerTransport {
     /// * `handler` - Function that processes incoming requests
     pub async fn set_request_handler<F>(&mut self, handler: F)
     where
-        F: Fn(JsonRpcRequest) -> tokio::sync::oneshot::Receiver<JsonRpcResponse> + Send + Sync + 'static,
+        F: Fn(JsonRpcRequest) -> tokio::sync::oneshot::Receiver<JsonRpcResponse>
+            + Send
+            + Sync
+            + 'static,
     {
         let mut state = self.state.write().await;
         state.request_handler = Some(Arc::new(handler));
@@ -385,7 +391,12 @@ impl ServerTransport for HttpServerTransport {
             .route("/health", get(handle_health_check))
             .layer(
                 ServiceBuilder::new()
-                    .layer(CorsLayer::new().allow_origin(Any).allow_methods(Any).allow_headers(Any))
+                    .layer(
+                        CorsLayer::new()
+                            .allow_origin(Any)
+                            .allow_methods(Any)
+                            .allow_headers(Any),
+                    )
                     .into_inner(),
             )
             .with_state(state);
@@ -411,7 +422,7 @@ impl ServerTransport for HttpServerTransport {
 
     async fn handle_request(&mut self, request: JsonRpcRequest) -> McpResult<JsonRpcResponse> {
         let state = self.state.read().await;
-        
+
         if let Some(ref handler) = state.request_handler {
             let response_rx = handler(request);
             drop(state); // Release the lock
@@ -436,7 +447,7 @@ impl ServerTransport for HttpServerTransport {
 
     async fn send_notification(&mut self, notification: JsonRpcNotification) -> McpResult<()> {
         let state = self.state.read().await;
-        
+
         if let Err(_) = state.notification_sender.send(notification) {
             tracing::warn!("No SSE clients connected to receive notification");
         }
@@ -476,7 +487,7 @@ async fn handle_mcp_request(
     Json(request): Json<JsonRpcRequest>,
 ) -> Result<Json<JsonRpcResponse>, StatusCode> {
     let state_guard = state.read().await;
-    
+
     if let Some(ref handler) = state_guard.request_handler {
         let response_rx = handler(request);
         drop(state_guard); // Release the lock
@@ -501,9 +512,7 @@ async fn handle_mcp_request(
 }
 
 /// Handle MCP notification requests
-async fn handle_mcp_notification(
-    Json(_notification): Json<JsonRpcNotification>,
-) -> StatusCode {
+async fn handle_mcp_notification(Json(_notification): Json<JsonRpcNotification>) -> StatusCode {
     // Notifications don't require a response
     StatusCode::OK
 }
@@ -517,21 +526,18 @@ async fn handle_sse_events(
     let receiver = state_guard.notification_sender.subscribe();
     drop(state_guard);
 
-    let stream = BroadcastStream::new(receiver)
-        .map(|result| {
-            match result {
-                Ok(notification) => {
-                    match serde_json::to_string(&notification) {
-                        Ok(json) => Ok(Event::default().data(json)),
-                        Err(e) => {
-                            tracing::error!("Failed to serialize notification: {}", e);
-                            Ok(Event::default().data("{}"))
-                        }
-                    }
+    let stream = BroadcastStream::new(receiver).map(|result| {
+        match result {
+            Ok(notification) => match serde_json::to_string(&notification) {
+                Ok(json) => Ok(Event::default().data(json)),
+                Err(e) => {
+                    tracing::error!("Failed to serialize notification: {}", e);
+                    Ok(Event::default().data("{}"))
                 }
-                Err(_) => Ok(Event::default().data("{}")), // Lagged or closed
-            }
-        });
+            },
+            Err(_) => Ok(Event::default().data("{}")), // Lagged or closed
+        }
+    });
 
     Sse::new(stream).keep_alive(
         axum::response::sse::KeepAlive::new()
@@ -542,9 +548,7 @@ async fn handle_sse_events(
 
 /// Handle Server-Sent Events (fallback when features not available)
 #[cfg(not(all(feature = "tokio-stream", feature = "futures")))]
-async fn handle_sse_events(
-    _state: State<Arc<RwLock<HttpServerState>>>,
-) -> StatusCode {
+async fn handle_sse_events(_state: State<Arc<RwLock<HttpServerState>>>) -> StatusCode {
     StatusCode::NOT_IMPLEMENTED
 }
 
@@ -588,7 +592,7 @@ mod tests {
     fn test_http_server_with_config() {
         let mut config = TransportConfig::default();
         config.compression = true;
-        
+
         let transport = HttpServerTransport::with_config("0.0.0.0:8080", config);
         assert_eq!(transport.bind_addr, "0.0.0.0:8080");
         assert!(transport.config.compression);
@@ -599,8 +603,9 @@ mod tests {
         let transport = HttpClientTransport::new(
             "http://localhost:3000",
             Some("http://localhost:3000/events"),
-        ).await;
-        
+        )
+        .await;
+
         assert!(transport.is_ok());
         let transport = transport.unwrap();
         assert!(transport.sse_url.is_some());

@@ -3,9 +3,9 @@
 //! This module provides utilities for parsing, validating, and manipulating URIs
 //! used in the MCP protocol for resources and other operations.
 
+use crate::core::error::{McpError, McpResult};
 use std::collections::HashMap;
 use url::Url;
-use crate::core::error::{McpError, McpResult};
 
 /// Parse a URI and extract query parameters
 pub fn parse_uri_with_params(uri: &str) -> McpResult<(String, HashMap<String, String>)> {
@@ -13,16 +13,19 @@ pub fn parse_uri_with_params(uri: &str) -> McpResult<(String, HashMap<String, St
         // Full URI
         let parsed = Url::parse(uri)
             .map_err(|e| McpError::InvalidUri(format!("Invalid URI '{}': {}", uri, e)))?;
-        
-        let base_uri = format!("{}://{}{}", parsed.scheme(), 
-            parsed.host_str().unwrap_or(""), 
-            parsed.path());
-        
+
+        let base_uri = format!(
+            "{}://{}{}",
+            parsed.scheme(),
+            parsed.host_str().unwrap_or(""),
+            parsed.path()
+        );
+
         let mut params = HashMap::new();
         for (key, value) in parsed.query_pairs() {
             params.insert(key.to_string(), value.to_string());
         }
-        
+
         Ok((base_uri, params))
     } else if uri.starts_with('/') {
         // Absolute path
@@ -46,12 +49,12 @@ pub fn parse_uri_with_params(uri: &str) -> McpResult<(String, HashMap<String, St
 /// Parse a query string into parameters
 pub fn parse_query_string(query: &str) -> McpResult<HashMap<String, String>> {
     let mut params = HashMap::new();
-    
+
     for pair in query.split('&') {
         if pair.is_empty() {
             continue;
         }
-        
+
         if let Some((key, value)) = pair.split_once('=') {
             let decoded_key = percent_decode(key)?;
             let decoded_value = percent_decode(value)?;
@@ -61,7 +64,7 @@ pub fn parse_query_string(query: &str) -> McpResult<HashMap<String, String>> {
             params.insert(decoded_key, String::new());
         }
     }
-    
+
     Ok(params)
 }
 
@@ -69,18 +72,21 @@ pub fn parse_query_string(query: &str) -> McpResult<HashMap<String, String>> {
 pub fn percent_decode(s: &str) -> McpResult<String> {
     let mut result = String::new();
     let mut chars = s.chars().peekable();
-    
+
     while let Some(ch) = chars.next() {
         if ch == '%' {
-            let hex1 = chars.next()
+            let hex1 = chars
+                .next()
                 .ok_or_else(|| McpError::InvalidUri("Incomplete percent encoding".to_string()))?;
-            let hex2 = chars.next()
+            let hex2 = chars
+                .next()
                 .ok_or_else(|| McpError::InvalidUri("Incomplete percent encoding".to_string()))?;
-            
+
             let hex_str = format!("{}{}", hex1, hex2);
-            let byte = u8::from_str_radix(&hex_str, 16)
-                .map_err(|_| McpError::InvalidUri(format!("Invalid hex in percent encoding: {}", hex_str)))?;
-            
+            let byte = u8::from_str_radix(&hex_str, 16).map_err(|_| {
+                McpError::InvalidUri(format!("Invalid hex in percent encoding: {}", hex_str))
+            })?;
+
             result.push(byte as char);
         } else if ch == '+' {
             result.push(' ');
@@ -88,14 +94,14 @@ pub fn percent_decode(s: &str) -> McpResult<String> {
             result.push(ch);
         }
     }
-    
+
     Ok(result)
 }
 
 /// Simple percent encoding for URI components
 pub fn percent_encode(s: &str) -> String {
     let mut result = String::new();
-    
+
     for byte in s.bytes() {
         match byte {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
@@ -109,7 +115,7 @@ pub fn percent_encode(s: &str) -> String {
             }
         }
     }
-    
+
     result
 }
 
@@ -127,12 +133,16 @@ pub fn validate_uri(uri: &str) -> McpResult<()> {
     } else if uri.starts_with('/') {
         // Absolute path - basic validation
         if uri.contains('\0') || uri.contains('\n') || uri.contains('\r') {
-            return Err(McpError::InvalidUri("URI contains invalid characters".to_string()));
+            return Err(McpError::InvalidUri(
+                "URI contains invalid characters".to_string(),
+            ));
         }
     } else {
         // Relative path or identifier - allow most characters
         if uri.contains('\0') || uri.contains('\n') || uri.contains('\r') {
-            return Err(McpError::InvalidUri("URI contains invalid characters".to_string()));
+            return Err(McpError::InvalidUri(
+                "URI contains invalid characters".to_string(),
+            ));
         }
     }
 
@@ -142,13 +152,13 @@ pub fn validate_uri(uri: &str) -> McpResult<()> {
 /// Normalize a URI to a standard form
 pub fn normalize_uri(uri: &str) -> McpResult<String> {
     validate_uri(uri)?;
-    
+
     if uri.contains("://") {
         // Full URI - normalize with url crate
         let parsed = Url::parse(uri)
             .map_err(|e| McpError::InvalidUri(format!("Invalid URI '{}': {}", uri, e)))?;
         let mut normalized = parsed.to_string();
-        
+
         // Remove duplicate slashes in path
         if let Ok(mut url) = Url::parse(&normalized) {
             let path = url.path();
@@ -156,7 +166,7 @@ pub fn normalize_uri(uri: &str) -> McpResult<String> {
             url.set_path(&clean_path);
             normalized = url.to_string();
         }
-        
+
         // Remove trailing slash unless it's the root
         if normalized.ends_with('/') && !normalized.ends_with("://") {
             let path_start = normalized.find("://").unwrap() + 3;
@@ -167,22 +177,22 @@ pub fn normalize_uri(uri: &str) -> McpResult<String> {
                 }
             }
         }
-        
+
         Ok(normalized)
     } else {
         // Path - basic normalization
         let mut normalized = uri.to_string();
-        
+
         // Remove duplicate slashes
         while normalized.contains("//") {
             normalized = normalized.replace("//", "/");
         }
-        
+
         // Remove trailing slash unless it's the root
         if normalized.len() > 1 && normalized.ends_with('/') {
             normalized.pop();
         }
-        
+
         Ok(normalized)
     }
 }
@@ -193,18 +203,19 @@ pub fn join_uri(base: &str, relative: &str) -> McpResult<String> {
         // Relative is actually absolute
         return Ok(relative.to_string());
     }
-    
+
     if relative.starts_with('/') {
         // Relative path is absolute, return it as-is
         return Ok(relative.to_string());
     }
-    
+
     if base.contains("://") {
         // Full URI base
         let base_url = Url::parse(base)
             .map_err(|e| McpError::InvalidUri(format!("Invalid base URI '{}': {}", base, e)))?;
-        let joined = base_url.join(relative)
-            .map_err(|e| McpError::InvalidUri(format!("Cannot join '{}' to '{}': {}", relative, base, e)))?;
+        let joined = base_url.join(relative).map_err(|e| {
+            McpError::InvalidUri(format!("Cannot join '{}' to '{}': {}", relative, base, e))
+        })?;
         Ok(joined.to_string())
     } else {
         // Path base
@@ -224,7 +235,7 @@ pub fn get_uri_extension(uri: &str) -> Option<String> {
     } else {
         uri.to_string()
     };
-    
+
     if let Some(dot_pos) = path.rfind('.') {
         if let Some(slash_pos) = path.rfind('/') {
             if dot_pos > slash_pos {
@@ -234,7 +245,7 @@ pub fn get_uri_extension(uri: &str) -> Option<String> {
             return Some(path[dot_pos + 1..].to_lowercase());
         }
     }
-    
+
     None
 }
 
@@ -272,7 +283,8 @@ mod tests {
 
     #[test]
     fn test_parse_uri_with_params() {
-        let (uri, params) = parse_uri_with_params("https://example.com/path?key=value&foo=bar").unwrap();
+        let (uri, params) =
+            parse_uri_with_params("https://example.com/path?key=value&foo=bar").unwrap();
         assert_eq!(uri, "https://example.com/path");
         assert_eq!(params.get("key"), Some(&"value".to_string()));
         assert_eq!(params.get("foo"), Some(&"bar".to_string()));
@@ -305,31 +317,52 @@ mod tests {
 
     #[test]
     fn test_normalize_uri() {
-        assert_eq!(normalize_uri("https://example.com//path//").unwrap(), "https://example.com/path");
+        assert_eq!(
+            normalize_uri("https://example.com//path//").unwrap(),
+            "https://example.com/path"
+        );
         assert_eq!(normalize_uri("/path//to//file/").unwrap(), "/path/to/file");
         assert_eq!(normalize_uri("/").unwrap(), "/");
     }
 
     #[test]
     fn test_join_uri() {
-        assert_eq!(join_uri("https://example.com", "path/to/file").unwrap(), "https://example.com/path/to/file");
-        assert_eq!(join_uri("/base", "relative/path").unwrap(), "/base/relative/path");
+        assert_eq!(
+            join_uri("https://example.com", "path/to/file").unwrap(),
+            "https://example.com/path/to/file"
+        );
+        assert_eq!(
+            join_uri("/base", "relative/path").unwrap(),
+            "/base/relative/path"
+        );
         assert_eq!(join_uri("/base/", "/absolute").unwrap(), "/absolute");
     }
 
     #[test]
     fn test_get_uri_extension() {
         assert_eq!(get_uri_extension("file.txt"), Some("txt".to_string()));
-        assert_eq!(get_uri_extension("https://example.com/file.JSON"), Some("json".to_string()));
-        assert_eq!(get_uri_extension("/path/to/file.tar.gz"), Some("gz".to_string()));
+        assert_eq!(
+            get_uri_extension("https://example.com/file.JSON"),
+            Some("json".to_string())
+        );
+        assert_eq!(
+            get_uri_extension("/path/to/file.tar.gz"),
+            Some("gz".to_string())
+        );
         assert_eq!(get_uri_extension("no-extension"), None);
     }
 
     #[test]
     fn test_guess_mime_type() {
-        assert_eq!(guess_mime_type("file.json"), Some("application/json".to_string()));
+        assert_eq!(
+            guess_mime_type("file.json"),
+            Some("application/json".to_string())
+        );
         assert_eq!(guess_mime_type("image.PNG"), Some("image/png".to_string()));
-        assert_eq!(guess_mime_type("document.pdf"), Some("application/pdf".to_string()));
+        assert_eq!(
+            guess_mime_type("document.pdf"),
+            Some("application/pdf".to_string())
+        );
         assert_eq!(guess_mime_type("unknown.xyz"), None);
     }
 }

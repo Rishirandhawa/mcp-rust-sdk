@@ -1,5 +1,5 @@
 //! MCP client implementation
-//! 
+//!
 //! This module provides the main client implementation for the Model Context Protocol.
 
 pub mod mcp_client;

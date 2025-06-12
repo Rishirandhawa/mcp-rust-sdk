@@ -9,11 +9,7 @@ use futures_util::{
     stream::{SplitSink, SplitStream, StreamExt},
 };
 use serde_json::Value;
-use std::{
-    collections::HashMap,
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::{broadcast, mpsc, Mutex, RwLock},
@@ -25,8 +21,8 @@ use tokio_tungstenite::{
 use url::Url;
 
 use crate::core::error::{McpError, McpResult};
-use crate::protocol::types::{JsonRpcRequest, JsonRpcResponse, JsonRpcNotification};
-use crate::transport::traits::{Transport, ServerTransport, TransportConfig, ConnectionState};
+use crate::protocol::types::{JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
+use crate::transport::traits::{ConnectionState, ServerTransport, Transport, TransportConfig};
 
 // ============================================================================
 // WebSocket Client Transport
@@ -66,10 +62,7 @@ impl WebSocketClientTransport {
     ///
     /// # Returns
     /// Result containing the transport or an error
-    pub async fn with_config<S: AsRef<str>>(
-        url: S,
-        config: TransportConfig,
-    ) -> McpResult<Self> {
+    pub async fn with_config<S: AsRef<str>>(url: S, config: TransportConfig) -> McpResult<Self> {
         let url_str = url.as_ref();
         let url_parsed = Url::parse(url_str)
             .map_err(|e| McpError::WebSocket(format!("Invalid WebSocket URL: {}", e)))?;
@@ -77,9 +70,7 @@ impl WebSocketClientTransport {
         tracing::debug!("Connecting to WebSocket: {}", url_str);
 
         // Connect to WebSocket with timeout
-        let connect_timeout = Duration::from_millis(
-            config.connect_timeout_ms.unwrap_or(30_000)
-        );
+        let connect_timeout = Duration::from_millis(config.connect_timeout_ms.unwrap_or(30_000));
 
         let (ws_stream, _) = timeout(connect_timeout, connect_async(&url_parsed))
             .await
@@ -130,11 +121,16 @@ impl WebSocketClientTransport {
                                 tracing::warn!("Failed to send response to waiting request");
                             }
                         } else {
-                            tracing::warn!("Received response for unknown request ID: {:?}", response.id);
+                            tracing::warn!(
+                                "Received response for unknown request ID: {:?}",
+                                response.id
+                            );
                         }
                     }
                     // Try to parse as notification
-                    else if let Ok(notification) = serde_json::from_str::<JsonRpcNotification>(&text) {
+                    else if let Ok(notification) =
+                        serde_json::from_str::<JsonRpcNotification>(&text)
+                    {
                         if let Err(_) = notification_sender.send(notification) {
                             tracing::debug!("Notification receiver dropped");
                             break;
@@ -190,7 +186,7 @@ impl WebSocketClientTransport {
 impl Transport for WebSocketClientTransport {
     async fn send_request(&mut self, request: JsonRpcRequest) -> McpResult<JsonRpcResponse> {
         let (sender, receiver) = tokio::sync::oneshot::channel();
-        
+
         // Store the pending request
         {
             let mut pending = self.pending_requests.lock().await;
@@ -198,19 +194,18 @@ impl Transport for WebSocketClientTransport {
         }
 
         // Send the request
-        let request_text = serde_json::to_string(&request)
-            .map_err(|e| McpError::Serialization(e))?;
-        
+        let request_text =
+            serde_json::to_string(&request).map_err(|e| McpError::Serialization(e))?;
+
         tracing::trace!("Sending WebSocket request: {}", request_text);
-        
+
         self.send_message(Message::Text(request_text)).await?;
 
         // Wait for response with timeout
-        let timeout_duration = Duration::from_millis(
-            self.config.read_timeout_ms.unwrap_or(60_000)
-        );
+        let timeout_duration = Duration::from_millis(self.config.read_timeout_ms.unwrap_or(60_000));
 
-        let response = timeout(timeout_duration, receiver).await
+        let response = timeout(timeout_duration, receiver)
+            .await
             .map_err(|_| McpError::WebSocket("Request timeout".to_string()))?
             .map_err(|_| McpError::WebSocket("Response channel closed".to_string()))?;
 
@@ -218,11 +213,11 @@ impl Transport for WebSocketClientTransport {
     }
 
     async fn send_notification(&mut self, notification: JsonRpcNotification) -> McpResult<()> {
-        let notification_text = serde_json::to_string(&notification)
-            .map_err(|e| McpError::Serialization(e))?;
-        
+        let notification_text =
+            serde_json::to_string(&notification).map_err(|e| McpError::Serialization(e))?;
+
         tracing::trace!("Sending WebSocket notification: {}", notification_text);
-        
+
         self.send_message(Message::Text(notification_text)).await
     }
 
@@ -231,9 +226,9 @@ impl Transport for WebSocketClientTransport {
             match receiver.try_recv() {
                 Ok(notification) => Ok(Some(notification)),
                 Err(mpsc::error::TryRecvError::Empty) => Ok(None),
-                Err(mpsc::error::TryRecvError::Disconnected) => {
-                    Err(McpError::WebSocket("Notification channel disconnected".to_string()))
-                }
+                Err(mpsc::error::TryRecvError::Disconnected) => Err(McpError::WebSocket(
+                    "Notification channel disconnected".to_string(),
+                )),
             }
         } else {
             Ok(None)
@@ -259,7 +254,7 @@ impl Transport for WebSocketClientTransport {
         self.notification_receiver = None;
 
         *self.state.write().await = ConnectionState::Disconnected;
-        
+
         Ok(())
     }
 
@@ -291,7 +286,17 @@ pub struct WebSocketServerTransport {
     bind_addr: String,
     config: TransportConfig,
     clients: Arc<RwLock<HashMap<String, WebSocketConnection>>>,
-    request_handler: Arc<RwLock<Option<Arc<dyn Fn(JsonRpcRequest) -> tokio::sync::oneshot::Receiver<JsonRpcResponse> + Send + Sync>>>>,
+    request_handler: Arc<
+        RwLock<
+            Option<
+                Arc<
+                    dyn Fn(JsonRpcRequest) -> tokio::sync::oneshot::Receiver<JsonRpcResponse>
+                        + Send
+                        + Sync,
+                >,
+            >,
+        >,
+    >,
     server_handle: Option<tokio::task::JoinHandle<()>>,
     running: Arc<RwLock<bool>>,
     shutdown_sender: Option<broadcast::Sender<()>>,
@@ -337,7 +342,10 @@ impl WebSocketServerTransport {
     /// * `handler` - Function that processes incoming requests
     pub async fn set_request_handler<F>(&mut self, handler: F)
     where
-        F: Fn(JsonRpcRequest) -> tokio::sync::oneshot::Receiver<JsonRpcResponse> + Send + Sync + 'static,
+        F: Fn(JsonRpcRequest) -> tokio::sync::oneshot::Receiver<JsonRpcResponse>
+            + Send
+            + Sync
+            + 'static,
     {
         let mut request_handler = self.request_handler.write().await;
         *request_handler = Some(Arc::new(handler));
@@ -346,11 +354,21 @@ impl WebSocketServerTransport {
     async fn handle_client_connection(
         stream: TcpStream,
         clients: Arc<RwLock<HashMap<String, WebSocketConnection>>>,
-        request_handler: Arc<RwLock<Option<Arc<dyn Fn(JsonRpcRequest) -> tokio::sync::oneshot::Receiver<JsonRpcResponse> + Send + Sync>>>>,
+        request_handler: Arc<
+            RwLock<
+                Option<
+                    Arc<
+                        dyn Fn(JsonRpcRequest) -> tokio::sync::oneshot::Receiver<JsonRpcResponse>
+                            + Send
+                            + Sync,
+                    >,
+                >,
+            >,
+        >,
         mut shutdown_receiver: broadcast::Receiver<()>,
     ) {
         let client_id = uuid::Uuid::new_v4().to_string();
-        
+
         let ws_stream = match accept_async(stream).await {
             Ok(ws) => ws,
             Err(e) => {
@@ -366,10 +384,13 @@ impl WebSocketServerTransport {
         // Add client to the connections map
         {
             let mut clients_guard = clients.write().await;
-            clients_guard.insert(client_id.clone(), WebSocketConnection {
-                sender: ws_sender,
-                id: client_id.clone(),
-            });
+            clients_guard.insert(
+                client_id.clone(),
+                WebSocketConnection {
+                    sender: ws_sender,
+                    id: client_id.clone(),
+                },
+            );
         }
 
         // Handle messages from this client
@@ -478,9 +499,9 @@ impl ServerTransport for WebSocketServerTransport {
     async fn start(&mut self) -> McpResult<()> {
         tracing::info!("Starting WebSocket server on {}", self.bind_addr);
 
-        let listener = TcpListener::bind(&self.bind_addr)
-            .await
-            .map_err(|e| McpError::WebSocket(format!("Failed to bind to {}: {}", self.bind_addr, e)))?;
+        let listener = TcpListener::bind(&self.bind_addr).await.map_err(|e| {
+            McpError::WebSocket(format!("Failed to bind to {}: {}", self.bind_addr, e))
+        })?;
 
         let clients = self.clients.clone();
         let request_handler = self.request_handler.clone();
@@ -498,7 +519,7 @@ impl ServerTransport for WebSocketServerTransport {
                         match result {
                             Ok((stream, addr)) => {
                                 tracing::debug!("New connection from: {}", addr);
-                                
+
                                 tokio::spawn(Self::handle_client_connection(
                                     stream,
                                     clients.clone(),
@@ -521,20 +542,25 @@ impl ServerTransport for WebSocketServerTransport {
 
         self.server_handle = Some(server_handle);
 
-        tracing::info!("WebSocket server started successfully on {}", self.bind_addr);
+        tracing::info!(
+            "WebSocket server started successfully on {}",
+            self.bind_addr
+        );
         Ok(())
     }
 
     async fn handle_request(&mut self, request: JsonRpcRequest) -> McpResult<JsonRpcResponse> {
         let handler_guard = self.request_handler.read().await;
-        
+
         if let Some(ref handler) = *handler_guard {
             let response_rx = handler(request);
             drop(handler_guard);
 
             match response_rx.await {
                 Ok(response) => Ok(response),
-                Err(_) => Err(McpError::WebSocket("Request handler channel closed".to_string())),
+                Err(_) => Err(McpError::WebSocket(
+                    "Request handler channel closed".to_string(),
+                )),
             }
         } else {
             Ok(JsonRpcResponse {
@@ -551,14 +577,18 @@ impl ServerTransport for WebSocketServerTransport {
     }
 
     async fn send_notification(&mut self, notification: JsonRpcNotification) -> McpResult<()> {
-        let notification_text = serde_json::to_string(&notification)
-            .map_err(|e| McpError::Serialization(e))?;
+        let notification_text =
+            serde_json::to_string(&notification).map_err(|e| McpError::Serialization(e))?;
 
         let mut clients_guard = self.clients.write().await;
         let mut disconnected_clients = Vec::new();
 
         for (client_id, client) in clients_guard.iter_mut() {
-            if let Err(e) = client.sender.send(Message::Text(notification_text.clone())).await {
+            if let Err(e) = client
+                .sender
+                .send(Message::Text(notification_text.clone()))
+                .await
+            {
                 tracing::error!("Failed to send notification to client {}: {}", client_id, e);
                 disconnected_clients.push(client_id.clone());
             }
@@ -624,7 +654,7 @@ mod tests {
     fn test_websocket_server_with_config() {
         let mut config = TransportConfig::default();
         config.max_message_size = Some(64 * 1024);
-        
+
         let transport = WebSocketServerTransport::with_config("0.0.0.0:9090", config);
         assert_eq!(transport.bind_addr, "0.0.0.0:9090");
         assert_eq!(transport.config.max_message_size, Some(64 * 1024));
@@ -634,7 +664,7 @@ mod tests {
     async fn test_websocket_client_invalid_url() {
         let result = WebSocketClientTransport::new("invalid-url").await;
         assert!(result.is_err());
-        
+
         if let Err(McpError::WebSocket(msg)) = result {
             assert!(msg.contains("Invalid WebSocket URL"));
         } else {

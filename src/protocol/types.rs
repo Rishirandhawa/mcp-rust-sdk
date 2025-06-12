@@ -85,9 +85,9 @@ pub struct SamplingCapability {}
 pub enum Content {
     /// Text content
     #[serde(rename = "text")]
-    Text { 
+    Text {
         /// The text content
-        text: String 
+        text: String,
     },
     /// Image content
     #[serde(rename = "image")]
@@ -193,23 +193,23 @@ pub struct PromptMessage {
 #[serde(untagged)]
 pub enum PromptContent {
     /// Text content
-    Text { 
+    Text {
         /// Type identifier
         #[serde(rename = "type")]
-        content_type: String, 
+        content_type: String,
         /// The text content
-        text: String 
+        text: String,
     },
     /// Image content
-    Image { 
+    Image {
         /// Type identifier
         #[serde(rename = "type")]
-        content_type: String, 
+        content_type: String,
         /// Base64-encoded image data
-        data: String, 
+        data: String,
         /// MIME type of the image
         #[serde(rename = "mimeType")]
-        mime_type: String 
+        mime_type: String,
     },
 }
 
@@ -300,12 +300,16 @@ pub const PROMPT_NOT_FOUND: i32 = -32002;
 
 impl JsonRpcRequest {
     /// Create a new JSON-RPC request
-    pub fn new<T: Serialize>(id: serde_json::Value, method: String, params: Option<T>) -> Result<Self, serde_json::Error> {
+    pub fn new<T: Serialize>(
+        id: serde_json::Value,
+        method: String,
+        params: Option<T>,
+    ) -> Result<Self, serde_json::Error> {
         let params = match params {
             Some(p) => Some(serde_json::to_value(p)?),
             None => None,
         };
-        
+
         Ok(Self {
             jsonrpc: "2.0".to_string(),
             id,
@@ -317,7 +321,10 @@ impl JsonRpcRequest {
 
 impl JsonRpcResponse {
     /// Create a successful JSON-RPC response
-    pub fn success<T: Serialize>(id: serde_json::Value, result: T) -> Result<Self, serde_json::Error> {
+    pub fn success<T: Serialize>(
+        id: serde_json::Value,
+        result: T,
+    ) -> Result<Self, serde_json::Error> {
         Ok(Self {
             jsonrpc: "2.0".to_string(),
             id,
@@ -325,14 +332,23 @@ impl JsonRpcResponse {
             error: None,
         })
     }
-    
+
     /// Create an error JSON-RPC response
-    pub fn error(id: serde_json::Value, code: i32, message: String, data: Option<serde_json::Value>) -> Self {
+    pub fn error(
+        id: serde_json::Value,
+        code: i32,
+        message: String,
+        data: Option<serde_json::Value>,
+    ) -> Self {
         Self {
             jsonrpc: "2.0".to_string(),
             id,
             result: None,
-            error: Some(JsonRpcError { code, message, data }),
+            error: Some(JsonRpcError {
+                code,
+                message,
+                data,
+            }),
         }
     }
 }
@@ -344,7 +360,7 @@ impl JsonRpcNotification {
             Some(p) => Some(serde_json::to_value(p)?),
             None => None,
         };
-        
+
         Ok(Self {
             jsonrpc: "2.0".to_string(),
             method,
@@ -360,12 +376,12 @@ impl Content {
     pub fn text<S: Into<String>>(text: S) -> Self {
         Self::Text { text: text.into() }
     }
-    
+
     /// Create image content
     pub fn image<S: Into<String>>(data: S, mime_type: S) -> Self {
-        Self::Image { 
-            data: data.into(), 
-            mime_type: mime_type.into() 
+        Self::Image {
+            data: data.into(),
+            mime_type: mime_type.into(),
         }
     }
 }
@@ -373,18 +389,18 @@ impl Content {
 impl PromptContent {
     /// Create text prompt content
     pub fn text<S: Into<String>>(text: S) -> Self {
-        Self::Text { 
-            content_type: "text".to_string(), 
-            text: text.into() 
+        Self::Text {
+            content_type: "text".to_string(),
+            text: text.into(),
         }
     }
-    
+
     /// Create image prompt content
     pub fn image<S: Into<String>>(data: S, mime_type: S) -> Self {
-        Self::Image { 
-            content_type: "image".to_string(), 
-            data: data.into(), 
-            mime_type: mime_type.into() 
+        Self::Image {
+            content_type: "image".to_string(),
+            data: data.into(),
+            mime_type: mime_type.into(),
         }
     }
 }
@@ -398,18 +414,24 @@ mod tests {
     fn test_content_serialization() {
         let text_content = Content::text("Hello, world!");
         let json = serde_json::to_value(&text_content).unwrap();
-        assert_eq!(json, json!({
-            "type": "text",
-            "text": "Hello, world!"
-        }));
+        assert_eq!(
+            json,
+            json!({
+                "type": "text",
+                "text": "Hello, world!"
+            })
+        );
 
         let image_content = Content::image("data", "image/png");
         let json = serde_json::to_value(&image_content).unwrap();
-        assert_eq!(json, json!({
-            "type": "image",
-            "data": "data",
-            "mimeType": "image/png"
-        }));
+        assert_eq!(
+            json,
+            json!({
+                "type": "image",
+                "data": "data",
+                "mimeType": "image/png"
+            })
+        );
     }
 
     #[test]
@@ -417,9 +439,10 @@ mod tests {
         let request = JsonRpcRequest::new(
             json!(1),
             "test_method".to_string(),
-            Some(json!({"param": "value"}))
-        ).unwrap();
-        
+            Some(json!({"param": "value"})),
+        )
+        .unwrap();
+
         assert_eq!(request.jsonrpc, "2.0");
         assert_eq!(request.method, "test_method");
         assert_eq!(request.id, json!(1));
@@ -434,10 +457,10 @@ mod tests {
         assert!(response.error.is_none());
 
         let error_response = JsonRpcResponse::error(
-            json!(1), 
-            INVALID_PARAMS, 
-            "Invalid parameters".to_string(), 
-            None
+            json!(1),
+            INVALID_PARAMS,
+            "Invalid parameters".to_string(),
+            None,
         );
         assert!(error_response.result.is_none());
         assert!(error_response.error.is_some());

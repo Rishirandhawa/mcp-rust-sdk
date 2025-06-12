@@ -14,8 +14,8 @@ use tokio::sync::{mpsc, Mutex};
 use tokio::time::{timeout, Duration};
 
 use crate::core::error::{McpError, McpResult};
-use crate::protocol::types::{JsonRpcRequest, JsonRpcResponse, JsonRpcNotification};
-use crate::transport::traits::{Transport, ServerTransport, TransportConfig, ConnectionState};
+use crate::protocol::types::{JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
+use crate::transport::traits::{ConnectionState, ServerTransport, Transport, TransportConfig};
 
 /// STDIO transport for MCP clients
 ///
@@ -54,9 +54,9 @@ impl StdioClientTransport {
     /// # Returns
     /// Result containing the transport or an error
     pub async fn with_config<S: AsRef<str>>(
-        command: S, 
-        args: Vec<S>, 
-        config: TransportConfig
+        command: S,
+        args: Vec<S>,
+        config: TransportConfig,
     ) -> McpResult<Self> {
         let command_str = command.as_ref();
         let args_str: Vec<&str> = args.iter().map(|s| s.as_ref()).collect();
@@ -71,9 +71,13 @@ impl StdioClientTransport {
             .spawn()
             .map_err(|e| McpError::transport(format!("Failed to start server process: {}", e)))?;
 
-        let stdin = child.stdin.take()
+        let stdin = child
+            .stdin
+            .take()
             .ok_or_else(|| McpError::transport("Failed to get stdin handle"))?;
-        let stdout = child.stdout.take()
+        let stdout = child
+            .stdout
+            .take()
             .ok_or_else(|| McpError::transport("Failed to get stdout handle"))?;
 
         let stdin_writer = BufWriter::new(stdin);
@@ -106,7 +110,7 @@ impl StdioClientTransport {
         pending_requests: Arc<Mutex<HashMap<Value, tokio::sync::oneshot::Sender<JsonRpcResponse>>>>,
     ) {
         let mut line = String::new();
-        
+
         loop {
             line.clear();
             match reader.read_line(&mut line).await {
@@ -128,11 +132,16 @@ impl StdioClientTransport {
                         if let Some(sender) = pending.remove(&response.id) {
                             let _ = sender.send(response);
                         } else {
-                            tracing::warn!("Received response for unknown request ID: {:?}", response.id);
+                            tracing::warn!(
+                                "Received response for unknown request ID: {:?}",
+                                response.id
+                            );
                         }
                     }
                     // Try to parse as notification
-                    else if let Ok(notification) = serde_json::from_str::<JsonRpcNotification>(line) {
+                    else if let Ok(notification) =
+                        serde_json::from_str::<JsonRpcNotification>(line)
+                    {
                         if notification_sender.send(notification).is_err() {
                             tracing::debug!("Notification receiver dropped");
                             break;
@@ -153,11 +162,13 @@ impl StdioClientTransport {
 #[async_trait]
 impl Transport for StdioClientTransport {
     async fn send_request(&mut self, request: JsonRpcRequest) -> McpResult<JsonRpcResponse> {
-        let writer = self.stdin_writer.as_mut()
+        let writer = self
+            .stdin_writer
+            .as_mut()
             .ok_or_else(|| McpError::transport("Transport not connected"))?;
 
         let (sender, receiver) = tokio::sync::oneshot::channel();
-        
+
         // Store the pending request
         {
             let mut pending = self.pending_requests.lock().await;
@@ -165,24 +176,29 @@ impl Transport for StdioClientTransport {
         }
 
         // Send the request
-        let request_line = serde_json::to_string(&request)
-            .map_err(|e| McpError::serialization(e))?;
-        
+        let request_line =
+            serde_json::to_string(&request).map_err(|e| McpError::serialization(e))?;
+
         tracing::trace!("Sending: {}", request_line);
-        
-        writer.write_all(request_line.as_bytes()).await
+
+        writer
+            .write_all(request_line.as_bytes())
+            .await
             .map_err(|e| McpError::transport(format!("Failed to write request: {}", e)))?;
-        writer.write_all(b"\n").await
+        writer
+            .write_all(b"\n")
+            .await
             .map_err(|e| McpError::transport(format!("Failed to write newline: {}", e)))?;
-        writer.flush().await
+        writer
+            .flush()
+            .await
             .map_err(|e| McpError::transport(format!("Failed to flush: {}", e)))?;
 
         // Wait for response with timeout
-        let timeout_duration = Duration::from_millis(
-            self.config.read_timeout_ms.unwrap_or(60_000)
-        );
+        let timeout_duration = Duration::from_millis(self.config.read_timeout_ms.unwrap_or(60_000));
 
-        let response = timeout(timeout_duration, receiver).await
+        let response = timeout(timeout_duration, receiver)
+            .await
             .map_err(|_| McpError::timeout("Request timeout"))?
             .map_err(|_| McpError::transport("Response channel closed"))?;
 
@@ -190,19 +206,27 @@ impl Transport for StdioClientTransport {
     }
 
     async fn send_notification(&mut self, notification: JsonRpcNotification) -> McpResult<()> {
-        let writer = self.stdin_writer.as_mut()
+        let writer = self
+            .stdin_writer
+            .as_mut()
             .ok_or_else(|| McpError::transport("Transport not connected"))?;
 
-        let notification_line = serde_json::to_string(&notification)
-            .map_err(|e| McpError::serialization(e))?;
-        
+        let notification_line =
+            serde_json::to_string(&notification).map_err(|e| McpError::serialization(e))?;
+
         tracing::trace!("Sending notification: {}", notification_line);
-        
-        writer.write_all(notification_line.as_bytes()).await
+
+        writer
+            .write_all(notification_line.as_bytes())
+            .await
             .map_err(|e| McpError::transport(format!("Failed to write notification: {}", e)))?;
-        writer.write_all(b"\n").await
+        writer
+            .write_all(b"\n")
+            .await
             .map_err(|e| McpError::transport(format!("Failed to write newline: {}", e)))?;
-        writer.flush().await
+        writer
+            .flush()
+            .await
             .map_err(|e| McpError::transport(format!("Failed to flush: {}", e)))?;
 
         Ok(())
@@ -270,7 +294,11 @@ pub struct StdioServerTransport {
     stdout_writer: Option<BufWriter<tokio::io::Stdout>>,
     config: TransportConfig,
     running: bool,
-    request_handler: Option<Box<dyn Fn(JsonRpcRequest) -> tokio::sync::oneshot::Receiver<JsonRpcResponse> + Send + Sync>>,
+    request_handler: Option<
+        Box<
+            dyn Fn(JsonRpcRequest) -> tokio::sync::oneshot::Receiver<JsonRpcResponse> + Send + Sync,
+        >,
+    >,
 }
 
 impl StdioServerTransport {
@@ -308,7 +336,10 @@ impl StdioServerTransport {
     /// * `handler` - Function that processes incoming requests
     pub fn set_request_handler<F>(&mut self, handler: F)
     where
-        F: Fn(JsonRpcRequest) -> tokio::sync::oneshot::Receiver<JsonRpcResponse> + Send + Sync + 'static,
+        F: Fn(JsonRpcRequest) -> tokio::sync::oneshot::Receiver<JsonRpcResponse>
+            + Send
+            + Sync
+            + 'static,
     {
         self.request_handler = Some(Box::new(handler));
     }
@@ -319,9 +350,13 @@ impl ServerTransport for StdioServerTransport {
     async fn start(&mut self) -> McpResult<()> {
         tracing::debug!("Starting STDIO server transport");
 
-        let mut reader = self.stdin_reader.take()
+        let mut reader = self
+            .stdin_reader
+            .take()
             .ok_or_else(|| McpError::transport("STDIN reader already taken"))?;
-        let mut writer = self.stdout_writer.take()
+        let mut writer = self
+            .stdout_writer
+            .take()
             .ok_or_else(|| McpError::transport("STDOUT writer already taken"))?;
 
         self.running = true;
@@ -329,7 +364,7 @@ impl ServerTransport for StdioServerTransport {
         let mut line = String::new();
         while self.running {
             line.clear();
-            
+
             match reader.read_line(&mut line).await {
                 Ok(0) => {
                     tracing::debug!("STDIN closed, stopping server");
@@ -347,18 +382,24 @@ impl ServerTransport for StdioServerTransport {
                     match serde_json::from_str::<JsonRpcRequest>(line) {
                         Ok(request) => {
                             let response = self.handle_request(request).await?;
-                            
+
                             let response_line = serde_json::to_string(&response)
                                 .map_err(|e| McpError::serialization(e))?;
-                            
+
                             tracing::trace!("Sending: {}", response_line);
-                            
-                            writer.write_all(response_line.as_bytes()).await
-                                .map_err(|e| McpError::transport(format!("Failed to write response: {}", e)))?;
-                            writer.write_all(b"\n").await
-                                .map_err(|e| McpError::transport(format!("Failed to write newline: {}", e)))?;
-                            writer.flush().await
-                                .map_err(|e| McpError::transport(format!("Failed to flush: {}", e)))?;
+
+                            writer
+                                .write_all(response_line.as_bytes())
+                                .await
+                                .map_err(|e| {
+                                    McpError::transport(format!("Failed to write response: {}", e))
+                                })?;
+                            writer.write_all(b"\n").await.map_err(|e| {
+                                McpError::transport(format!("Failed to write newline: {}", e))
+                            })?;
+                            writer.flush().await.map_err(|e| {
+                                McpError::transport(format!("Failed to flush: {}", e))
+                            })?;
                         }
                         Err(e) => {
                             tracing::warn!("Failed to parse request: {} - Error: {}", line, e);
@@ -392,19 +433,27 @@ impl ServerTransport for StdioServerTransport {
     }
 
     async fn send_notification(&mut self, notification: JsonRpcNotification) -> McpResult<()> {
-        let writer = self.stdout_writer.as_mut()
+        let writer = self
+            .stdout_writer
+            .as_mut()
             .ok_or_else(|| McpError::transport("STDOUT writer not available"))?;
 
-        let notification_line = serde_json::to_string(&notification)
-            .map_err(|e| McpError::serialization(e))?;
-        
+        let notification_line =
+            serde_json::to_string(&notification).map_err(|e| McpError::serialization(e))?;
+
         tracing::trace!("Sending notification: {}", notification_line);
-        
-        writer.write_all(notification_line.as_bytes()).await
+
+        writer
+            .write_all(notification_line.as_bytes())
+            .await
             .map_err(|e| McpError::transport(format!("Failed to write notification: {}", e)))?;
-        writer.write_all(b"\n").await
+        writer
+            .write_all(b"\n")
+            .await
             .map_err(|e| McpError::transport(format!("Failed to write newline: {}", e)))?;
-        writer.flush().await
+        writer
+            .flush()
+            .await
             .map_err(|e| McpError::transport(format!("Failed to flush: {}", e)))?;
 
         Ok(())
@@ -457,7 +506,7 @@ mod tests {
     fn test_stdio_server_with_config() {
         let mut config = TransportConfig::default();
         config.read_timeout_ms = Some(30_000);
-        
+
         let transport = StdioServerTransport::with_config(config);
         assert_eq!(transport.config.read_timeout_ms, Some(30_000));
     }
@@ -465,7 +514,7 @@ mod tests {
     #[tokio::test]
     async fn test_stdio_server_handle_request() {
         let mut transport = StdioServerTransport::new();
-        
+
         let request = JsonRpcRequest {
             jsonrpc: "2.0".to_string(),
             id: json!(1),
@@ -478,7 +527,7 @@ mod tests {
         assert_eq!(response.id, json!(1));
         assert!(response.error.is_some());
         assert!(response.result.is_none());
-        
+
         let error = response.error.unwrap();
         assert_eq!(error.code, crate::protocol::types::METHOD_NOT_FOUND);
     }

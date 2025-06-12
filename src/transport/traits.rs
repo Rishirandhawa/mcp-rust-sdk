@@ -3,9 +3,9 @@
 //! This module defines the core transport traits that enable MCP communication
 //! over different protocols like STDIO, HTTP, and WebSocket.
 
-use async_trait::async_trait;
 use crate::core::error::McpResult;
-use crate::protocol::types::{JsonRpcRequest, JsonRpcResponse, JsonRpcNotification};
+use crate::protocol::types::{JsonRpcNotification, JsonRpcRequest, JsonRpcResponse};
+use async_trait::async_trait;
 
 /// Transport trait for MCP clients
 ///
@@ -135,11 +135,11 @@ pub struct TransportConfig {
 impl Default for TransportConfig {
     fn default() -> Self {
         Self {
-            connect_timeout_ms: Some(30_000), // 30 seconds
-            read_timeout_ms: Some(60_000),    // 60 seconds
-            write_timeout_ms: Some(30_000),   // 30 seconds
+            connect_timeout_ms: Some(30_000),         // 30 seconds
+            read_timeout_ms: Some(60_000),            // 60 seconds
+            write_timeout_ms: Some(30_000),           // 30 seconds
             max_message_size: Some(16 * 1024 * 1024), // 16 MB
-            keep_alive_ms: Some(30_000),      // 30 seconds
+            keep_alive_ms: Some(30_000),              // 30 seconds
             compression: false,
             headers: std::collections::HashMap::new(),
         }
@@ -236,8 +236,8 @@ impl Default for ReconnectConfig {
         Self {
             enabled: true,
             max_attempts: Some(5),
-            initial_delay_ms: 1000,   // 1 second
-            max_delay_ms: 30_000,     // 30 seconds
+            initial_delay_ms: 1000, // 1 second
+            max_delay_ms: 30_000,   // 30 seconds
             backoff_multiplier: 2.0,
             jitter_factor: 0.1,
         }
@@ -325,7 +325,7 @@ mod tests {
         assert_eq!(ConnectionState::Connected, ConnectionState::Connected);
         assert_eq!(ConnectionState::Disconnected, ConnectionState::Disconnected);
         assert_ne!(ConnectionState::Connected, ConnectionState::Disconnected);
-        
+
         let error1 = ConnectionState::Error("test".to_string());
         let error2 = ConnectionState::Error("test".to_string());
         let error3 = ConnectionState::Error("other".to_string());

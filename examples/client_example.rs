@@ -4,14 +4,14 @@
 //! an MCP server and performs various operations like calling tools, reading
 //! resources, and executing prompts.
 
-use std::collections::HashMap;
 use serde_json::json;
+use std::collections::HashMap;
 
 use mcp_rust_sdk::{
-    client::{McpClient, ClientSession},
     client::session::SessionConfig,
-    transport::stdio::StdioClientTransport,
+    client::{ClientSession, McpClient},
     core::error::McpResult,
+    transport::stdio::StdioClientTransport,
 };
 
 #[tokio::main]
@@ -38,15 +38,17 @@ async fn main() -> McpResult<()> {
 
     // Connect to the server (assumes a server is running on STDIO)
     tracing::info!("Connecting to server...");
-    
+
     // In a real scenario, you would specify the server command/process
     // For this example, we'll assume a server is already available
-    let transport = StdioClientTransport::new("echo".to_string(), vec!["hello".to_string()]).await?;
-    
+    let transport =
+        StdioClientTransport::new("echo".to_string(), vec!["hello".to_string()]).await?;
+
     match session.connect(transport).await {
         Ok(init_result) => {
-            tracing::info!("Connected to server: {} v{}", 
-                init_result.server_info.name, 
+            tracing::info!(
+                "Connected to server: {} v{}",
+                init_result.server_info.name,
                 init_result.server_info.version
             );
             tracing::info!("Server capabilities: {:?}", init_result.capabilities);
@@ -69,21 +71,27 @@ async fn main() -> McpResult<()> {
     // Disconnect from the server
     tracing::info!("Disconnecting from server...");
     session.disconnect().await?;
-    
+
     tracing::info!("Client example completed");
     Ok(())
 }
 
-async fn demonstrate_operations(client: &std::sync::Arc<tokio::sync::Mutex<McpClient>>) -> McpResult<()> {
+async fn demonstrate_operations(
+    client: &std::sync::Arc<tokio::sync::Mutex<McpClient>>,
+) -> McpResult<()> {
     // 1. List available tools
     tracing::info!("=== Listing Tools ===");
     {
         let client_guard = client.lock().await;
         let tools_result = client_guard.list_tools(None).await?;
-        
+
         tracing::info!("Available tools:");
         for tool in &tools_result.tools {
-            tracing::info!("  - {}: {}", tool.name, tool.description.as_deref().unwrap_or("No description"));
+            tracing::info!(
+                "  - {}: {}",
+                tool.name,
+                tool.description.as_deref().unwrap_or("No description")
+            );
         }
     }
 
@@ -96,7 +104,10 @@ async fn demonstrate_operations(client: &std::sync::Arc<tokio::sync::Mutex<McpCl
         args.insert("b".to_string(), json!(4.5));
         args.insert("operation".to_string(), json!("multiply"));
 
-        match client_guard.call_tool("calculator".to_string(), Some(args)).await {
+        match client_guard
+            .call_tool("calculator".to_string(), Some(args))
+            .await
+        {
             Ok(result) => {
                 tracing::info!("Calculator result:");
                 for content in &result.content {
@@ -142,11 +153,12 @@ async fn demonstrate_operations(client: &std::sync::Arc<tokio::sync::Mutex<McpCl
     {
         let client_guard = client.lock().await;
         let resources_result = client_guard.list_resources(None).await?;
-        
+
         tracing::info!("Available resources:");
         for resource in &resources_result.resources {
-            tracing::info!("  - {}: {} ({})", 
-                resource.name, 
+            tracing::info!(
+                "  - {}: {} ({})",
+                resource.name,
                 resource.uri,
                 resource.mime_type.as_deref().unwrap_or("unknown type")
             );
@@ -157,7 +169,10 @@ async fn demonstrate_operations(client: &std::sync::Arc<tokio::sync::Mutex<McpCl
     tracing::info!("=== Reading Resource ===");
     {
         let client_guard = client.lock().await;
-        match client_guard.read_resource("file:///demo.txt".to_string()).await {
+        match client_guard
+            .read_resource("file:///demo.txt".to_string())
+            .await
+        {
             Ok(result) => {
                 tracing::info!("Resource content:");
                 for content in &result.contents {
@@ -175,14 +190,19 @@ async fn demonstrate_operations(client: &std::sync::Arc<tokio::sync::Mutex<McpCl
     {
         let client_guard = client.lock().await;
         let prompts_result = client_guard.list_prompts(None).await?;
-        
+
         tracing::info!("Available prompts:");
         for prompt in &prompts_result.prompts {
-            tracing::info!("  - {}: {}", prompt.name, prompt.description.as_deref().unwrap_or("No description"));
+            tracing::info!(
+                "  - {}: {}",
+                prompt.name,
+                prompt.description.as_deref().unwrap_or("No description")
+            );
             if let Some(args) = &prompt.arguments {
                 for arg in args {
-                    tracing::info!("    - {}: {} (required: {})", 
-                        arg.name, 
+                    tracing::info!(
+                        "    - {}: {} (required: {})",
+                        arg.name,
                         arg.description.as_deref().unwrap_or("No description"),
                         arg.required
                     );
@@ -199,7 +219,10 @@ async fn demonstrate_operations(client: &std::sync::Arc<tokio::sync::Mutex<McpCl
         args.insert("language".to_string(), json!("Rust"));
         args.insert("focus".to_string(), json!("security"));
 
-        match client_guard.get_prompt("code-review".to_string(), Some(args)).await {
+        match client_guard
+            .get_prompt("code-review".to_string(), Some(args))
+            .await
+        {
             Ok(result) => {
                 tracing::info!("Code review prompt:");
                 if let Some(description) = &result.description {

@@ -8,14 +8,14 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 
 use mcp_rust_sdk::{
+    core::{
+        error::{McpError, McpResult},
+        resource::ResourceHandler,
+        tool::ToolHandler,
+    },
+    protocol::types::{Content, ResourceContent, ResourceInfo, ToolResult},
     server::McpServer,
     transport::http::HttpServerTransport,
-    core::{
-        tool::ToolHandler,
-        resource::ResourceHandler,
-        error::{McpResult, McpError},
-    },
-    protocol::types::{Content, ToolResult, ResourceInfo, ResourceContent},
 };
 
 /// HTTP-aware calculator tool
@@ -24,15 +24,18 @@ struct HttpCalculatorHandler;
 #[async_trait]
 impl ToolHandler for HttpCalculatorHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<ToolResult> {
-        let operation = arguments.get("operation")
+        let operation = arguments
+            .get("operation")
             .and_then(|v| v.as_str())
             .unwrap_or("add");
 
-        let a = arguments.get("a")
+        let a = arguments
+            .get("a")
             .and_then(|v| v.as_f64())
             .ok_or_else(|| McpError::Validation("Missing or invalid 'a' parameter".to_string()))?;
 
-        let b = arguments.get("b")
+        let b = arguments
+            .get("b")
             .and_then(|v| v.as_f64())
             .ok_or_else(|| McpError::Validation("Missing or invalid 'b' parameter".to_string()))?;
 
@@ -53,14 +56,20 @@ impl ToolHandler for HttpCalculatorHandler {
             "modulo" => a % b,
             _ => {
                 return Ok(ToolResult {
-                    content: vec![Content::text(format!("Error: Unknown operation '{}'", operation))],
+                    content: vec![Content::text(format!(
+                        "Error: Unknown operation '{}'",
+                        operation
+                    ))],
                     is_error: Some(true),
                 });
             }
         };
 
         Ok(ToolResult {
-            content: vec![Content::text(format!("{} {} {} = {}", a, operation, b, result))],
+            content: vec![Content::text(format!(
+                "{} {} {} = {}",
+                a, operation, b, result
+            ))],
             is_error: None,
         })
     }
@@ -71,7 +80,11 @@ struct HttpStatusHandler;
 
 #[async_trait]
 impl ResourceHandler for HttpStatusHandler {
-    async fn read(&self, uri: &str, _params: &HashMap<String, String>) -> McpResult<Vec<ResourceContent>> {
+    async fn read(
+        &self,
+        uri: &str,
+        _params: &HashMap<String, String>,
+    ) -> McpResult<Vec<ResourceContent>> {
         match uri {
             "http://server/status" => {
                 let status = json!({
@@ -80,7 +93,7 @@ impl ResourceHandler for HttpStatusHandler {
                     "features": ["requests", "notifications", "sse"],
                     "endpoints": {
                         "requests": "/mcp",
-                        "notifications": "/mcp/notify", 
+                        "notifications": "/mcp/notify",
                         "events": "/mcp/events",
                         "health": "/health"
                     },
@@ -146,48 +159,49 @@ async fn main() -> McpResult<()> {
     // Initialize logging
     tracing_subscriber::fmt::init();
 
-    let mut server = McpServer::new(
-        "http-mcp-server".to_string(),
-        "1.0.0".to_string(),
-    );
+    let mut server = McpServer::new("http-mcp-server".to_string(), "1.0.0".to_string());
 
     // Add HTTP-aware calculator tool
-    server.add_tool(
-        "http_calculator".to_string(),
-        Some("Advanced calculator with HTTP transport support".to_string()),
-        json!({
-            "type": "object",
-            "properties": {
-                "operation": {
-                    "type": "string",
-                    "enum": ["add", "subtract", "multiply", "divide", "power", "modulo"],
-                    "description": "Mathematical operation to perform",
-                    "default": "add"
+    server
+        .add_tool(
+            "http_calculator".to_string(),
+            Some("Advanced calculator with HTTP transport support".to_string()),
+            json!({
+                "type": "object",
+                "properties": {
+                    "operation": {
+                        "type": "string",
+                        "enum": ["add", "subtract", "multiply", "divide", "power", "modulo"],
+                        "description": "Mathematical operation to perform",
+                        "default": "add"
+                    },
+                    "a": {
+                        "type": "number",
+                        "description": "First operand"
+                    },
+                    "b": {
+                        "type": "number",
+                        "description": "Second operand"
+                    }
                 },
-                "a": {
-                    "type": "number",
-                    "description": "First operand"
-                },
-                "b": {
-                    "type": "number",
-                    "description": "Second operand"
-                }
-            },
-            "required": ["a", "b"]
-        }),
-        HttpCalculatorHandler,
-    ).await?;
+                "required": ["a", "b"]
+            }),
+            HttpCalculatorHandler,
+        )
+        .await?;
 
     // Add HTTP status resource
-    server.add_resource_detailed(
-        ResourceInfo {
-            uri: "http://server/".to_string(),
-            name: "HTTP Server Resources".to_string(),
-            description: Some("HTTP server status and metrics".to_string()),
-            mime_type: Some("application/json".to_string()),
-        },
-        HttpStatusHandler,
-    ).await?;
+    server
+        .add_resource_detailed(
+            ResourceInfo {
+                uri: "http://server/".to_string(),
+                name: "HTTP Server Resources".to_string(),
+                description: Some("HTTP server status and metrics".to_string()),
+                mime_type: Some("application/json".to_string()),
+            },
+            HttpStatusHandler,
+        )
+        .await?;
 
     // Start HTTP server
     tracing::info!("Starting HTTP MCP server on http://localhost:3000");
@@ -204,7 +218,9 @@ async fn main() -> McpResult<()> {
     tracing::info!("Test with: curl -X POST http://localhost:3000/mcp -H 'Content-Type: application/json' -d '{{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}}'");
 
     // Keep running until interrupted
-    tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl+c");
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Failed to listen for ctrl+c");
     server.stop().await?;
 
     Ok(())

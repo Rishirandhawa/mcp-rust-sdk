@@ -4,18 +4,14 @@
 //! initialize connections, and perform operations like calling tools, reading resources,
 //! and executing prompts according to the Model Context Protocol specification.
 
+use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{RwLock, Mutex};
-use serde_json::Value;
+use tokio::sync::{Mutex, RwLock};
 
 use crate::core::error::{McpError, McpResult};
-use crate::protocol::{
-    types::*,
-    messages::*,
-    validation::*,
-};
+use crate::protocol::{messages::*, types::*, validation::*};
 use crate::transport::traits::Transport;
 
 /// Configuration for the MCP client
@@ -199,11 +195,16 @@ impl McpClient {
         let response = self.send_request(request).await?;
 
         if let Some(error) = response.error {
-            return Err(McpError::Protocol(format!("Initialize failed: {}", error.message)));
+            return Err(McpError::Protocol(format!(
+                "Initialize failed: {}",
+                error.message
+            )));
         }
 
         let result: InitializeResult = serde_json::from_value(
-            response.result.ok_or_else(|| McpError::Protocol("Missing initialize result".to_string()))?
+            response
+                .result
+                .ok_or_else(|| McpError::Protocol("Missing initialize result".to_string()))?,
         )?;
 
         // Store server information
@@ -239,11 +240,15 @@ impl McpClient {
     }
 
     /// Call a tool on the server
-    pub async fn call_tool(&self, name: String, arguments: Option<HashMap<String, Value>>) -> McpResult<CallToolResult> {
+    pub async fn call_tool(
+        &self,
+        name: String,
+        arguments: Option<HashMap<String, Value>>,
+    ) -> McpResult<CallToolResult> {
         self.ensure_connected().await?;
 
         let params = CallToolParams::new(name, arguments);
-        
+
         if self.config.validate_requests {
             validate_call_tool_params(&params)?;
         }
@@ -282,7 +287,7 @@ impl McpClient {
         self.ensure_connected().await?;
 
         let params = ReadResourceParams::new(uri);
-        
+
         if self.config.validate_requests {
             validate_read_resource_params(&params)?;
         }
@@ -347,11 +352,15 @@ impl McpClient {
     }
 
     /// Get a prompt from the server
-    pub async fn get_prompt(&self, name: String, arguments: Option<HashMap<String, Value>>) -> McpResult<GetPromptResult> {
+    pub async fn get_prompt(
+        &self,
+        name: String,
+        arguments: Option<HashMap<String, Value>>,
+    ) -> McpResult<GetPromptResult> {
         self.ensure_connected().await?;
 
         let params = GetPromptParams::new(name, arguments);
-        
+
         if self.config.validate_requests {
             validate_get_prompt_params(&params)?;
         }
@@ -371,7 +380,10 @@ impl McpClient {
     // ========================================================================
 
     /// Create a message using server-side sampling
-    pub async fn create_message(&self, params: CreateMessageParams) -> McpResult<CreateMessageResult> {
+    pub async fn create_message(
+        &self,
+        params: CreateMessageParams,
+    ) -> McpResult<CreateMessageResult> {
         self.ensure_connected().await?;
 
         // Check if server supports sampling
@@ -379,7 +391,9 @@ impl McpClient {
             let server_capabilities = self.server_capabilities.read().await;
             if let Some(capabilities) = server_capabilities.as_ref() {
                 if capabilities.sampling.is_none() {
-                    return Err(McpError::Protocol("Server does not support sampling".to_string()));
+                    return Err(McpError::Protocol(
+                        "Server does not support sampling".to_string(),
+                    ));
                 }
             } else {
                 return Err(McpError::Protocol("Not connected to server".to_string()));
@@ -461,11 +475,11 @@ impl McpClient {
         let mut transport_guard = self.transport.lock().await;
         if let Some(transport) = transport_guard.as_mut() {
             let response = transport.send_request(request).await?;
-            
+
             if self.config.validate_responses {
                 validate_jsonrpc_response(&response)?;
             }
-            
+
             Ok(response)
         } else {
             Err(McpError::Transport("Not connected".to_string()))
@@ -478,14 +492,17 @@ impl McpClient {
         T: serde::de::DeserializeOwned,
     {
         if let Some(error) = response.error {
-            return Err(McpError::Protocol(format!("Server error: {}", error.message)));
+            return Err(McpError::Protocol(format!(
+                "Server error: {}",
+                error.message
+            )));
         }
 
-        let result = response.result
+        let result = response
+            .result
             .ok_or_else(|| McpError::Protocol("Missing result in response".to_string()))?;
 
-        serde_json::from_value(result)
-            .map_err(|e| McpError::Serialization(e))
+        serde_json::from_value(result).map_err(|e| McpError::Serialization(e))
     }
 
     /// Ensure the client is connected
@@ -645,16 +662,13 @@ mod tests {
             MCP_PROTOCOL_VERSION.to_string(),
         );
 
-        let init_response = JsonRpcResponse::success(
-            Value::from(1),
-            init_result.clone(),
-        ).unwrap();
+        let init_response = JsonRpcResponse::success(Value::from(1), init_result.clone()).unwrap();
 
         let transport = MockTransport::new(vec![init_response]);
-        
+
         let mut client = McpClient::new("test-client".to_string(), "1.0.0".to_string());
         let result = client.connect(transport).await.unwrap();
-        
+
         assert_eq!(result.server_info.name, "test-server");
         assert!(client.is_connected().await);
     }
@@ -670,18 +684,15 @@ mod tests {
             MCP_PROTOCOL_VERSION.to_string(),
         );
 
-        let init_response = JsonRpcResponse::success(
-            Value::from(1),
-            init_result,
-        ).unwrap();
+        let init_response = JsonRpcResponse::success(Value::from(1), init_result).unwrap();
 
         let transport = MockTransport::new(vec![init_response]);
-        
+
         let mut client = McpClient::new("test-client".to_string(), "1.0.0".to_string());
         client.connect(transport).await.unwrap();
-        
+
         assert!(client.is_connected().await);
-        
+
         client.disconnect().await.unwrap();
         assert!(!client.is_connected().await);
         assert!(client.server_info().await.is_none());

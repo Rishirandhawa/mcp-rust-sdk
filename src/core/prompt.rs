@@ -8,7 +8,9 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 use crate::core::error::{McpError, McpResult};
-use crate::protocol::types::{PromptInfo, PromptArgument, PromptMessage, PromptContent, PromptResult};
+use crate::protocol::types::{
+    PromptArgument, PromptContent, PromptInfo, PromptMessage, PromptResult,
+};
 
 /// Trait for implementing prompt handlers
 #[async_trait]
@@ -39,9 +41,9 @@ impl Prompt {
     /// # Arguments
     /// * `info` - Information about the prompt
     /// * `handler` - Implementation of the prompt's functionality
-    pub fn new<H>(info: PromptInfo, handler: H) -> Self 
-    where 
-        H: PromptHandler + 'static 
+    pub fn new<H>(info: PromptInfo, handler: H) -> Self
+    where
+        H: PromptHandler + 'static,
     {
         Self {
             info,
@@ -74,7 +76,10 @@ impl Prompt {
     /// Result containing the prompt result or an error
     pub async fn get(&self, arguments: HashMap<String, Value>) -> McpResult<PromptResult> {
         if !self.enabled {
-            return Err(McpError::validation(format!("Prompt '{}' is disabled", self.info.name)));
+            return Err(McpError::validation(format!(
+                "Prompt '{}' is disabled",
+                self.info.name
+            )));
         }
 
         // Validate required arguments
@@ -82,7 +87,7 @@ impl Prompt {
             for arg in args {
                 if arg.required && !arguments.contains_key(&arg.name) {
                     return Err(McpError::validation(format!(
-                        "Required argument '{}' missing for prompt '{}'", 
+                        "Required argument '{}' missing for prompt '{}'",
                         arg.name, self.info.name
                     )));
                 }
@@ -107,9 +112,9 @@ impl PromptMessage {
     pub fn system<S: Into<String>>(content: S) -> Self {
         Self {
             role: "system".to_string(),
-            content: PromptContent::Text { 
-                content_type: "text".to_string(), 
-                text: content.into() 
+            content: PromptContent::Text {
+                content_type: "text".to_string(),
+                text: content.into(),
             },
         }
     }
@@ -118,9 +123,9 @@ impl PromptMessage {
     pub fn user<S: Into<String>>(content: S) -> Self {
         Self {
             role: "user".to_string(),
-            content: PromptContent::Text { 
-                content_type: "text".to_string(), 
-                text: content.into() 
+            content: PromptContent::Text {
+                content_type: "text".to_string(),
+                text: content.into(),
             },
         }
     }
@@ -129,9 +134,9 @@ impl PromptMessage {
     pub fn assistant<S: Into<String>>(content: S) -> Self {
         Self {
             role: "assistant".to_string(),
-            content: PromptContent::Text { 
-                content_type: "text".to_string(), 
-                text: content.into() 
+            content: PromptContent::Text {
+                content_type: "text".to_string(),
+                text: content.into(),
             },
         }
     }
@@ -303,7 +308,11 @@ impl PromptBuilder {
         let info = PromptInfo {
             name: self.name,
             description: self.description,
-            arguments: if self.arguments.is_empty() { None } else { Some(self.arguments) },
+            arguments: if self.arguments.is_empty() {
+                None
+            } else {
+                Some(self.arguments)
+            },
         };
 
         Prompt::new(info, handler)
@@ -338,12 +347,12 @@ mod tests {
         let prompt = GreetingPrompt;
         let mut args = HashMap::new();
         args.insert("name".to_string(), json!("Alice"));
-        
+
         let result = prompt.get(args).await.unwrap();
         assert_eq!(result.messages.len(), 2);
         assert_eq!(result.messages[0].role, "system");
         assert_eq!(result.messages[1].role, "user");
-        
+
         match &result.messages[1].content {
             PromptContent::Text { text, .. } => assert!(text.contains("Alice")),
             _ => panic!("Expected text content"),
@@ -354,18 +363,21 @@ mod tests {
     async fn test_code_review_prompt() {
         let prompt = CodeReviewPrompt;
         let mut args = HashMap::new();
-        args.insert("code".to_string(), json!("function hello() { console.log('Hello'); }"));
+        args.insert(
+            "code".to_string(),
+            json!("function hello() { console.log('Hello'); }"),
+        );
         args.insert("language".to_string(), json!("javascript"));
         args.insert("focus".to_string(), json!("performance"));
-        
+
         let result = prompt.get(args).await.unwrap();
         assert_eq!(result.messages.len(), 2);
-        
+
         match &result.messages[1].content {
             PromptContent::Text { text, .. } => {
                 assert!(text.contains("javascript"));
                 assert!(text.contains("console.log"));
-            },
+            }
             _ => panic!("Expected text content"),
         }
     }
@@ -375,15 +387,13 @@ mod tests {
         let info = PromptInfo {
             name: "test_prompt".to_string(),
             description: Some("Test prompt".to_string()),
-            arguments: Some(vec![
-                PromptArgument {
-                    name: "arg1".to_string(),
-                    description: Some("First argument".to_string()),
-                    required: true,
-                }
-            ]),
+            arguments: Some(vec![PromptArgument {
+                name: "arg1".to_string(),
+                description: Some("First argument".to_string()),
+                required: true,
+            }]),
         };
-        
+
         let prompt = Prompt::new(info.clone(), GreetingPrompt);
         assert_eq!(prompt.info, info);
         assert!(prompt.is_enabled());
@@ -394,17 +404,15 @@ mod tests {
         let info = PromptInfo {
             name: "test_prompt".to_string(),
             description: None,
-            arguments: Some(vec![
-                PromptArgument {
-                    name: "required_arg".to_string(),
-                    description: None,
-                    required: true,
-                }
-            ]),
+            arguments: Some(vec![PromptArgument {
+                name: "required_arg".to_string(),
+                description: None,
+                required: true,
+            }]),
         };
-        
+
         let prompt = Prompt::new(info, GreetingPrompt);
-        
+
         // Test missing required argument
         let result = prompt.get(HashMap::new()).await;
         assert!(result.is_err());
@@ -424,7 +432,7 @@ mod tests {
 
         assert_eq!(prompt.info.name, "test");
         assert_eq!(prompt.info.description, Some("A test prompt".to_string()));
-        
+
         let args = prompt.info.arguments.unwrap();
         assert_eq!(args.len(), 2);
         assert_eq!(args[0].name, "input");
@@ -437,10 +445,10 @@ mod tests {
     fn test_prompt_message_creation() {
         let system_msg = PromptMessage::system("You are a helpful assistant");
         assert_eq!(system_msg.role, "system");
-        
+
         let user_msg = PromptMessage::user("Hello!");
         assert_eq!(user_msg.role, "user");
-        
+
         let assistant_msg = PromptMessage::assistant("Hi there!");
         assert_eq!(assistant_msg.role, "assistant");
     }
@@ -452,17 +460,21 @@ mod tests {
             PromptContent::Text { content_type, text } => {
                 assert_eq!(content_type, "text");
                 assert_eq!(text, "Hello, world!");
-            },
+            }
             _ => panic!("Expected text content"),
         }
 
         let image_content = PromptContent::image("base64data", "image/png");
         match image_content {
-            PromptContent::Image { content_type, data, mime_type } => {
+            PromptContent::Image {
+                content_type,
+                data,
+                mime_type,
+            } => {
                 assert_eq!(content_type, "image");
                 assert_eq!(data, "base64data");
                 assert_eq!(mime_type, "image/png");
-            },
+            }
             _ => panic!("Expected image content"),
         }
     }

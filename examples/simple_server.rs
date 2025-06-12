@@ -3,23 +3,26 @@
 //! This example demonstrates how to create a basic MCP server with a few tools,
 //! resources, and prompts. It uses STDIO transport for communication.
 
+use async_trait::async_trait;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use serde_json::{json, Value};
-use async_trait::async_trait;
 
 use mcp_rust_sdk::{
-    server::McpServer,
-    server::mcp_server::ServerConfig,
-    transport::stdio::StdioServerTransport,
     core::{
-        tool::ToolHandler,
-        resource::ResourceHandler,
+        error::{McpError, McpResult},
         prompt::PromptHandler,
-        error::{McpResult, McpError},
+        resource::ResourceHandler,
+        tool::ToolHandler,
     },
-    protocol::types::{Content, ToolResult, ResourceInfo, ResourceContent, PromptInfo, PromptResult, PromptMessage, PromptContent, PromptArgument},
+    protocol::types::{
+        Content, PromptArgument, PromptContent, PromptInfo, PromptMessage, PromptResult,
+        ResourceContent, ResourceInfo, ToolResult,
+    },
+    server::mcp_server::ServerConfig,
+    server::McpServer,
+    transport::stdio::StdioServerTransport,
 };
 
 // ============================================================================
@@ -32,15 +35,18 @@ struct CalculatorHandler;
 #[async_trait]
 impl ToolHandler for CalculatorHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<ToolResult> {
-        let a = arguments.get("a")
+        let a = arguments
+            .get("a")
             .and_then(|v| v.as_f64())
             .ok_or_else(|| McpError::Validation("Missing or invalid 'a' parameter".to_string()))?;
-        
-        let b = arguments.get("b")
+
+        let b = arguments
+            .get("b")
             .and_then(|v| v.as_f64())
             .ok_or_else(|| McpError::Validation("Missing or invalid 'b' parameter".to_string()))?;
 
-        let operation = arguments.get("operation")
+        let operation = arguments
+            .get("operation")
             .and_then(|v| v.as_str())
             .unwrap_or("add");
 
@@ -59,14 +65,20 @@ impl ToolHandler for CalculatorHandler {
             }
             _ => {
                 return Ok(ToolResult {
-                    content: vec![Content::text(format!("Error: Unknown operation '{}'", operation))],
+                    content: vec![Content::text(format!(
+                        "Error: Unknown operation '{}'",
+                        operation
+                    ))],
                     is_error: Some(true),
                 });
             }
         };
 
         Ok(ToolResult {
-            content: vec![Content::text(format!("{} {} {} = {}", a, operation, b, result))],
+            content: vec![Content::text(format!(
+                "{} {} {} = {}",
+                a, operation, b, result
+            ))],
             is_error: None,
         })
     }
@@ -78,15 +90,18 @@ struct EchoHandler;
 #[async_trait]
 impl ToolHandler for EchoHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<ToolResult> {
-        let message = arguments.get("message")
+        let message = arguments
+            .get("message")
             .and_then(|v| v.as_str())
             .unwrap_or("Hello, World!");
 
-        let uppercase = arguments.get("uppercase")
+        let uppercase = arguments
+            .get("uppercase")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
-        let prefix = arguments.get("prefix")
+        let prefix = arguments
+            .get("prefix")
             .and_then(|v| v.as_str())
             .unwrap_or("Echo");
 
@@ -115,9 +130,18 @@ struct FileSystemHandler {
 impl FileSystemHandler {
     fn new() -> Self {
         let mut files = HashMap::new();
-        files.insert("file:///demo.txt".to_string(), "This is a demo file!".to_string());
-        files.insert("file:///config.json".to_string(), r#"{"name": "demo", "version": "1.0"}"#.to_string());
-        files.insert("file:///data.csv".to_string(), "name,age\nAlice,30\nBob,25\n".to_string());
+        files.insert(
+            "file:///demo.txt".to_string(),
+            "This is a demo file!".to_string(),
+        );
+        files.insert(
+            "file:///config.json".to_string(),
+            r#"{"name": "demo", "version": "1.0"}"#.to_string(),
+        );
+        files.insert(
+            "file:///data.csv".to_string(),
+            "name,age\nAlice,30\nBob,25\n".to_string(),
+        );
 
         Self {
             files: Arc::new(RwLock::new(files)),
@@ -127,9 +151,13 @@ impl FileSystemHandler {
 
 #[async_trait]
 impl ResourceHandler for FileSystemHandler {
-    async fn read(&self, uri: &str, _params: &HashMap<String, String>) -> McpResult<Vec<ResourceContent>> {
+    async fn read(
+        &self,
+        uri: &str,
+        _params: &HashMap<String, String>,
+    ) -> McpResult<Vec<ResourceContent>> {
         let files = self.files.read().await;
-        
+
         if let Some(content) = files.get(uri) {
             let mime_type = if uri.ends_with(".json") {
                 Some("application/json".to_string())
@@ -152,24 +180,27 @@ impl ResourceHandler for FileSystemHandler {
 
     async fn list(&self) -> McpResult<Vec<ResourceInfo>> {
         let files = self.files.read().await;
-        
-        Ok(files.keys().map(|uri| {
-            let name = uri.split('/').last().unwrap_or(uri);
-            let mime_type = if uri.ends_with(".json") {
-                Some("application/json".to_string())
-            } else if uri.ends_with(".csv") {
-                Some("text/csv".to_string())
-            } else {
-                Some("text/plain".to_string())
-            };
 
-            ResourceInfo {
-                uri: uri.clone(),
-                name: name.to_string(),
-                description: Some(format!("Demo file: {}", name)),
-                mime_type,
-            }
-        }).collect())
+        Ok(files
+            .keys()
+            .map(|uri| {
+                let name = uri.split('/').last().unwrap_or(uri);
+                let mime_type = if uri.ends_with(".json") {
+                    Some("application/json".to_string())
+                } else if uri.ends_with(".csv") {
+                    Some("text/csv".to_string())
+                } else {
+                    Some("text/plain".to_string())
+                };
+
+                ResourceInfo {
+                    uri: uri.clone(),
+                    name: name.to_string(),
+                    description: Some(format!("Demo file: {}", name)),
+                    mime_type,
+                }
+            })
+            .collect())
     }
 
     async fn subscribe(&self, _uri: &str) -> McpResult<()> {
@@ -193,11 +224,13 @@ struct CodeReviewPromptHandler;
 #[async_trait]
 impl PromptHandler for CodeReviewPromptHandler {
     async fn get(&self, arguments: HashMap<String, Value>) -> McpResult<PromptResult> {
-        let language = arguments.get("language")
+        let language = arguments
+            .get("language")
             .and_then(|v| v.as_str())
             .unwrap_or("any");
 
-        let focus = arguments.get("focus")
+        let focus = arguments
+            .get("focus")
             .and_then(|v| v.as_str())
             .unwrap_or("general");
 
@@ -214,7 +247,10 @@ impl PromptHandler for CodeReviewPromptHandler {
         };
 
         Ok(PromptResult {
-            description: Some(format!("Code review prompt for {} focusing on {}", language, focus)),
+            description: Some(format!(
+                "Code review prompt for {} focusing on {}",
+                language, focus
+            )),
             messages: vec![
                 PromptMessage {
                     role: "system".to_string(),
@@ -235,11 +271,13 @@ struct DocumentationPromptHandler;
 #[async_trait]
 impl PromptHandler for DocumentationPromptHandler {
     async fn get(&self, arguments: HashMap<String, Value>) -> McpResult<PromptResult> {
-        let doc_type = arguments.get("type")
+        let doc_type = arguments
+            .get("type")
             .and_then(|v| v.as_str())
             .unwrap_or("function");
 
-        let language = arguments.get("language")
+        let language = arguments
+            .get("language")
             .and_then(|v| v.as_str())
             .unwrap_or("any");
 
@@ -263,7 +301,10 @@ impl PromptHandler for DocumentationPromptHandler {
         };
 
         Ok(PromptResult {
-            description: Some(format!("Documentation prompt for {} {}", language, doc_type)),
+            description: Some(format!(
+                "Documentation prompt for {} {}",
+                language, doc_type
+            )),
             messages: vec![
                 PromptMessage {
                     role: "system".to_string(),
@@ -303,126 +344,140 @@ async fn main() -> McpResult<()> {
 
     // Add tools
     tracing::info!("Adding tools...");
-    
-    server.add_tool(
-        "calculator".to_string(),
-        Some("Perform basic arithmetic operations".to_string()),
-        json!({
-            "type": "object",
-            "properties": {
-                "a": {
-                    "type": "number",
-                    "description": "First number"
-                },
-                "b": {
-                    "type": "number", 
-                    "description": "Second number"
-                },
-                "operation": {
-                    "type": "string",
-                    "enum": ["add", "subtract", "multiply", "divide"],
-                    "description": "Operation to perform",
-                    "default": "add"
-                }
-            },
-            "required": ["a", "b"]
-        }),
-        CalculatorHandler,
-    ).await?;
 
-    server.add_tool(
-        "echo".to_string(),
-        Some("Echo back a message with optional formatting".to_string()),
-        json!({
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string",
-                    "description": "Message to echo back"
+    server
+        .add_tool(
+            "calculator".to_string(),
+            Some("Perform basic arithmetic operations".to_string()),
+            json!({
+                "type": "object",
+                "properties": {
+                    "a": {
+                        "type": "number",
+                        "description": "First number"
+                    },
+                    "b": {
+                        "type": "number",
+                        "description": "Second number"
+                    },
+                    "operation": {
+                        "type": "string",
+                        "enum": ["add", "subtract", "multiply", "divide"],
+                        "description": "Operation to perform",
+                        "default": "add"
+                    }
                 },
-                "uppercase": {
-                    "type": "boolean",
-                    "description": "Convert to uppercase",
-                    "default": false
-                },
-                "prefix": {
-                    "type": "string",
-                    "description": "Prefix to add to the message",
-                    "default": "Echo"
+                "required": ["a", "b"]
+            }),
+            CalculatorHandler,
+        )
+        .await?;
+
+    server
+        .add_tool(
+            "echo".to_string(),
+            Some("Echo back a message with optional formatting".to_string()),
+            json!({
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "description": "Message to echo back"
+                    },
+                    "uppercase": {
+                        "type": "boolean",
+                        "description": "Convert to uppercase",
+                        "default": false
+                    },
+                    "prefix": {
+                        "type": "string",
+                        "description": "Prefix to add to the message",
+                        "default": "Echo"
+                    }
                 }
-            }
-        }),
-        EchoHandler,
-    ).await?;
+            }),
+            EchoHandler,
+        )
+        .await?;
 
     // Add resources
     tracing::info!("Adding resources...");
-    
+
     let fs_handler = FileSystemHandler::new();
-    server.add_resource_detailed(
-        ResourceInfo {
-            uri: "file:///".to_string(),
-            name: "Demo File System".to_string(),
-            description: Some("Demo file system with sample files".to_string()),
-            mime_type: Some("inode/directory".to_string()),
-        },
-        fs_handler,
-    ).await?;
+    server
+        .add_resource_detailed(
+            ResourceInfo {
+                uri: "file:///".to_string(),
+                name: "Demo File System".to_string(),
+                description: Some("Demo file system with sample files".to_string()),
+                mime_type: Some("inode/directory".to_string()),
+            },
+            fs_handler,
+        )
+        .await?;
 
     // Add prompts
     tracing::info!("Adding prompts...");
-    
-    server.add_prompt(
-        PromptInfo {
-            name: "code-review".to_string(),
-            description: Some("Generate code review prompts".to_string()),
-            arguments: Some(vec![
-                PromptArgument {
-                    name: "language".to_string(),
-                    description: Some("Programming language".to_string()),
-                    required: false,
-                },
-                PromptArgument {
-                    name: "focus".to_string(),
-                    description: Some("Review focus (security, performance, style, general)".to_string()),
-                    required: false,
-                },
-            ]),
-        },
-        CodeReviewPromptHandler,
-    ).await?;
 
-    server.add_prompt(
-        PromptInfo {
-            name: "documentation".to_string(),
-            description: Some("Generate documentation prompts".to_string()),
-            arguments: Some(vec![
-                PromptArgument {
-                    name: "type".to_string(),
-                    description: Some("Documentation type (api, class, function)".to_string()),
-                    required: false,
-                },
-                PromptArgument {
-                    name: "language".to_string(),
-                    description: Some("Programming language".to_string()),
-                    required: false,
-                },
-            ]),
-        },
-        DocumentationPromptHandler,
-    ).await?;
+    server
+        .add_prompt(
+            PromptInfo {
+                name: "code-review".to_string(),
+                description: Some("Generate code review prompts".to_string()),
+                arguments: Some(vec![
+                    PromptArgument {
+                        name: "language".to_string(),
+                        description: Some("Programming language".to_string()),
+                        required: false,
+                    },
+                    PromptArgument {
+                        name: "focus".to_string(),
+                        description: Some(
+                            "Review focus (security, performance, style, general)".to_string(),
+                        ),
+                        required: false,
+                    },
+                ]),
+            },
+            CodeReviewPromptHandler,
+        )
+        .await?;
+
+    server
+        .add_prompt(
+            PromptInfo {
+                name: "documentation".to_string(),
+                description: Some("Generate documentation prompts".to_string()),
+                arguments: Some(vec![
+                    PromptArgument {
+                        name: "type".to_string(),
+                        description: Some("Documentation type (api, class, function)".to_string()),
+                        required: false,
+                    },
+                    PromptArgument {
+                        name: "language".to_string(),
+                        description: Some("Programming language".to_string()),
+                        required: false,
+                    },
+                ]),
+            },
+            DocumentationPromptHandler,
+        )
+        .await?;
 
     // Create and start the server with STDIO transport
     tracing::info!("Starting server...");
-    
+
     let transport = StdioServerTransport::new();
     server.start(transport).await?;
 
     tracing::info!("Server started successfully! Listening for requests...");
 
     // Keep the server running until interrupted
-    tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl+c");
-    
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Failed to listen for ctrl+c");
+
     tracing::info!("Shutting down server...");
     server.stop().await?;
     tracing::info!("Server stopped");
