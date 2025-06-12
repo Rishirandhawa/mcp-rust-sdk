@@ -71,8 +71,13 @@ jobs:
         run: |
           echo "## Code Complexity Report" > complexity-report.md
           echo "" >> complexity-report.md
-          scc --format json src/ | jq . > complexity.json
-          scc --format markdown src/ >> complexity-report.md
+          if command -v scc >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+            scc --format json src/ | jq . > complexity.json || echo "{}" > complexity.json
+            scc --format markdown src/ >> complexity-report.md || echo "Complexity analysis failed" >> complexity-report.md
+          else
+            echo "scc or jq not available, skipping detailed analysis" >> complexity-report.md
+            echo "{}" > complexity.json
+          fi
 
       - name: Upload complexity report
         uses: actions/upload-artifact@v4
