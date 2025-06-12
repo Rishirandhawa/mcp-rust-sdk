@@ -24,6 +24,7 @@ use crate::transport::traits::{ConnectionState, ServerTransport, Transport, Tran
 pub struct StdioClientTransport {
     child: Option<Child>,
     stdin_writer: Option<BufWriter<tokio::process::ChildStdin>>,
+    #[allow(dead_code)]
     stdout_reader: Option<BufReader<tokio::process::ChildStdout>>,
     notification_receiver: Option<mpsc::UnboundedReceiver<JsonRpcNotification>>,
     pending_requests: Arc<Mutex<HashMap<Value, tokio::sync::oneshot::Sender<JsonRpcResponse>>>>,
@@ -88,7 +89,7 @@ impl StdioClientTransport {
 
         // Start message processing task
         let reader_pending_requests = pending_requests.clone();
-        let mut reader = stdout_reader;
+        let reader = stdout_reader;
         tokio::spawn(async move {
             Self::message_processor(reader, notification_sender, reader_pending_requests).await;
         });
@@ -177,7 +178,7 @@ impl Transport for StdioClientTransport {
 
         // Send the request
         let request_line =
-            serde_json::to_string(&request).map_err(|e| McpError::serialization(e))?;
+            serde_json::to_string(&request).map_err(McpError::serialization)?;
 
         tracing::trace!("Sending: {}", request_line);
 
@@ -212,7 +213,7 @@ impl Transport for StdioClientTransport {
             .ok_or_else(|| McpError::transport("Transport not connected"))?;
 
         let notification_line =
-            serde_json::to_string(&notification).map_err(|e| McpError::serialization(e))?;
+            serde_json::to_string(&notification).map_err(McpError::serialization)?;
 
         tracing::trace!("Sending notification: {}", notification_line);
 
@@ -292,6 +293,7 @@ impl Transport for StdioClientTransport {
 pub struct StdioServerTransport {
     stdin_reader: Option<BufReader<tokio::io::Stdin>>,
     stdout_writer: Option<BufWriter<tokio::io::Stdout>>,
+    #[allow(dead_code)]
     config: TransportConfig,
     running: bool,
     request_handler: Option<
@@ -384,7 +386,7 @@ impl ServerTransport for StdioServerTransport {
                             let response = self.handle_request(request).await?;
 
                             let response_line = serde_json::to_string(&response)
-                                .map_err(|e| McpError::serialization(e))?;
+                                .map_err(McpError::serialization)?;
 
                             tracing::trace!("Sending: {}", response_line);
 
@@ -439,7 +441,7 @@ impl ServerTransport for StdioServerTransport {
             .ok_or_else(|| McpError::transport("STDOUT writer not available"))?;
 
         let notification_line =
-            serde_json::to_string(&notification).map_err(|e| McpError::serialization(e))?;
+            serde_json::to_string(&notification).map_err(McpError::serialization)?;
 
         tracing::trace!("Sending notification: {}", notification_line);
 
@@ -504,8 +506,10 @@ mod tests {
 
     #[test]
     fn test_stdio_server_with_config() {
-        let mut config = TransportConfig::default();
-        config.read_timeout_ms = Some(30_000);
+        let config = TransportConfig {
+            read_timeout_ms: Some(30_000),
+            ..Default::default()
+        };
 
         let transport = StdioServerTransport::with_config(config);
         assert_eq!(transport.config.read_timeout_ms, Some(30_000));

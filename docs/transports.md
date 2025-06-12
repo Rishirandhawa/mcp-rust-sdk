@@ -17,7 +17,7 @@ STDIO transport uses standard input/output for communication, typically with a c
 ### Server
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     server::McpServer,
     transport::stdio::StdioServerTransport,
 };
@@ -38,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Client
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     client::{McpClient, ClientSession},
     transport::stdio::StdioClientTransport,
 };
@@ -61,7 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Configuration
 
 ```rust
-use mcp_rust_sdk::transport::stdio::StdioConfig;
+use mcp_protocol_sdk::transport::stdio::StdioConfig;
 
 let config = StdioConfig {
     buffer_size: 8192,
@@ -83,7 +83,7 @@ HTTP transport provides RESTful API endpoints with Server-Sent Events for real-t
 ### Server
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     server::McpServer,
     transport::http::HttpServerTransport,
 };
@@ -112,7 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Client
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     client::{McpClient, ClientSession},
     transport::http::HttpClientTransport,
 };
@@ -159,7 +159,7 @@ curl -N http://localhost:3000/mcp/events
 #### Configuration
 
 ```rust
-use mcp_rust_sdk::transport::http::{HttpServerConfig, HttpClientConfig};
+use mcp_protocol_sdk::transport::http::{HttpServerConfig, HttpClientConfig};
 
 // Server configuration
 let server_config = HttpServerConfig {
@@ -202,7 +202,7 @@ WebSocket transport provides full-duplex, real-time communication.
 ### Server
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     server::McpServer,
     transport::websocket::WebSocketServerTransport,
 };
@@ -229,7 +229,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Client
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     client::{McpClient, ClientSession},
     transport::websocket::WebSocketClientTransport,
 };
@@ -251,7 +251,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Configuration
 
 ```rust
-use mcp_rust_sdk::transport::websocket::{WebSocketServerConfig, WebSocketClientConfig};
+use mcp_protocol_sdk::transport::websocket::{WebSocketServerConfig, WebSocketClientConfig};
 
 // Server configuration
 let server_config = WebSocketServerConfig {
@@ -295,7 +295,7 @@ let transport = WebSocketClientTransport::with_config(client_config).await?;
 You can implement custom transports by implementing the transport traits:
 
 ```rust
-use mcp_rust_sdk::transport::traits::{Transport, ServerTransport, ClientTransport};
+use mcp_protocol_sdk::transport::traits::{Transport, ServerTransport, ClientTransport};
 use async_trait::async_trait;
 use tokio::sync::mpsc;
 
@@ -401,7 +401,7 @@ impl ClientTransport for CustomTransport {
 ### Connection Management
 
 ```rust
-use mcp_rust_sdk::client::session::{SessionConfig, SessionEventHandler};
+use mcp_protocol_sdk::client::session::{SessionConfig, SessionEventHandler};
 use async_trait::async_trait;
 
 struct MyEventHandler;
@@ -439,7 +439,7 @@ let session_config = SessionConfig {
 ### Error Handling
 
 ```rust
-use mcp_rust_sdk::core::error::McpError;
+use mcp_protocol_sdk::core::error::McpError;
 
 async fn handle_transport_errors(session: &ClientSession) {
     loop {
@@ -477,7 +477,7 @@ async fn handle_transport_errors(session: &ClientSession) {
 #### HTTP Transport Security
 
 ```rust
-use mcp_rust_sdk::transport::http::HttpServerConfig;
+use mcp_protocol_sdk::transport::http::HttpServerConfig;
 
 let secure_config = HttpServerConfig {
     bind_address: "0.0.0.0:443".to_string(),
@@ -499,7 +499,7 @@ let secure_config = HttpServerConfig {
 #### WebSocket Security
 
 ```rust
-use mcp_rust_sdk::transport::websocket::WebSocketServerConfig;
+use mcp_protocol_sdk::transport::websocket::WebSocketServerConfig;
 
 let secure_config = WebSocketServerConfig {
     bind_address: "0.0.0.0:8443".to_string(),
@@ -520,7 +520,7 @@ let secure_config = WebSocketServerConfig {
 ### Transport Metrics
 
 ```rust
-use mcp_rust_sdk::transport::metrics::{TransportMetrics, MetricsCollector};
+use mcp_protocol_sdk::transport::metrics::{TransportMetrics, MetricsCollector};
 
 struct MyMetricsCollector;
 
@@ -556,7 +556,7 @@ let transport = HttpServerTransport::with_metrics(
 ### Health Checks
 
 ```rust
-use mcp_rust_sdk::server::health::{HealthCheck, HealthStatus};
+use mcp_protocol_sdk::server::health::{HealthCheck, HealthStatus};
 
 async fn check_transport_health(server: &McpServer) -> HealthStatus {
     match server.get_connection_count().await {

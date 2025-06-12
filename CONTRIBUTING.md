@@ -276,7 +276,7 @@ We aim for:
 /// # Examples
 ///
 /// ```
-/// use mcp_rust_sdk::*;
+/// use mcp_protocol_sdk::*;
 /// 
 /// let result = function_name("example").unwrap();
 /// assert_eq!(result, expected_value);

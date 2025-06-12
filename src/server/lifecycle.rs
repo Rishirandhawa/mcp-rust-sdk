@@ -9,7 +9,7 @@ use tokio::sync::{watch, Mutex, RwLock};
 use tokio::time::timeout;
 
 use crate::core::error::{McpError, McpResult};
-use crate::server::mcp_server::{McpServer, ServerConfig};
+use crate::server::mcp_server::McpServer;
 
 /// Server lifecycle state
 #[derive(Debug, Clone, PartialEq)]
@@ -55,7 +55,7 @@ pub trait LifecycleListener: Send + Sync {
     fn on_stop(&self) {}
 
     /// Called when an error occurs
-    fn on_error(&self, error: &McpError) {}
+    fn on_error(&self, _error: &McpError) {}
 }
 
 impl Default for LifecycleManager {
@@ -91,7 +91,7 @@ impl LifecycleManager {
 
     /// Transition to a new state
     pub async fn transition_to(&self, new_state: LifecycleState) -> McpResult<()> {
-        let old_state = {
+        let _old_state = {
             let mut state = self.state.write().await;
             let old = state.clone();
             *state = new_state.clone();
@@ -99,7 +99,7 @@ impl LifecycleManager {
         };
 
         // Broadcast the state change
-        if let Err(_) = self.state_tx.send(new_state.clone()) {
+        if self.state_tx.send(new_state.clone()).is_err() {
             // Receiver may have been dropped, which is okay
         }
 
@@ -617,7 +617,7 @@ mod tests {
 
         fn on_error(&self, error: &McpError) {
             if let Ok(mut events) = self.events.try_lock() {
-                events.push(format!("error: {}", error.to_string()));
+                events.push(format!("error: {}", error));
             }
         }
     }

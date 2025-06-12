@@ -11,6 +11,7 @@ use mcp_protocol_sdk::{
     client::{ClientSession, McpClient},
     core::error::McpResult,
     transport::websocket::WebSocketClientTransport,
+    Content,
 };
 
 #[tokio::main]
@@ -108,7 +109,7 @@ async fn demonstrate_websocket_operations(
                 tracing::info!("WebSocket Echo result:");
                 for content in &result.content {
                     match content {
-                        mcp_rust_sdk::protocol::types::Content::Text { text } => {
+                        Content::Text { text } => {
                             tracing::info!("  {}", text);
                         }
                         _ => tracing::info!("  (non-text content)"),
@@ -136,7 +137,7 @@ async fn demonstrate_websocket_operations(
                 tracing::info!("WebSocket Broadcast result:");
                 for content in &result.content {
                     match content {
-                        mcp_rust_sdk::protocol::types::Content::Text { text } => {
+                        Content::Text { text } => {
                             tracing::info!("  {}", text);
                         }
                         _ => tracing::info!("  (non-text content)"),
@@ -164,7 +165,7 @@ async fn demonstrate_websocket_operations(
                 tracing::info!("WebSocket Chat result:");
                 for content in &result.content {
                     match content {
-                        mcp_rust_sdk::protocol::types::Content::Text { text } => {
+                        Content::Text { text } => {
                             tracing::info!("  {}", text);
                         }
                         _ => tracing::info!("  (non-text content)"),
@@ -195,7 +196,7 @@ async fn demonstrate_websocket_operations(
                 tracing::info!("WebSocket Chat (Bob) result:");
                 for content in &result.content {
                     match content {
-                        mcp_rust_sdk::protocol::types::Content::Text { text } => {
+                        Content::Text { text } => {
                             tracing::info!("  {}", text);
                         }
                         _ => tracing::info!("  (non-text content)"),

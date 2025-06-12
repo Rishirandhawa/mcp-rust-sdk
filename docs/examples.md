@@ -9,7 +9,7 @@ This page showcases real-world examples of using MCP Rust SDK in different scena
 A minimal server that echoes back messages.
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     server::McpServer,
     transport::stdio::StdioServerTransport,
     core::tool::ToolHandler,
@@ -23,7 +23,7 @@ struct EchoTool;
 
 #[async_trait]
 impl ToolHandler for EchoTool {
-    async fn call(&self, arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_rust_sdk::core::error::McpError> {
+    async fn call(&self, arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_protocol_sdk::core::error::McpError> {
         let message = arguments.get("message")
             .and_then(|v| v.as_str())
             .unwrap_or("No message provided");
@@ -65,7 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Basic Client
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     client::{McpClient, ClientSession},
     transport::stdio::StdioClientTransport,
 };
@@ -103,7 +103,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### HTTP Server with REST API
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     server::McpServer,
     transport::http::HttpServerTransport,
     core::tool::ToolHandler,
@@ -117,7 +117,7 @@ struct WeatherTool;
 
 #[async_trait]
 impl ToolHandler for WeatherTool {
-    async fn call(&self, arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_rust_sdk::core::error::McpError> {
+    async fn call(&self, arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_protocol_sdk::core::error::McpError> {
         let city = arguments.get("city")
             .and_then(|v| v.as_str())
             .unwrap_or("Unknown");
@@ -176,7 +176,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### WebSocket Real-time Server
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     server::McpServer,
     transport::websocket::WebSocketServerTransport,
     core::tool::ToolHandler,
@@ -191,7 +191,7 @@ struct RealTimeDataTool;
 
 #[async_trait]
 impl ToolHandler for RealTimeDataTool {
-    async fn call(&self, arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_rust_sdk::core::error::McpError> {
+    async fn call(&self, arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_protocol_sdk::core::error::McpError> {
         let data_type = arguments.get("type")
             .and_then(|v| v.as_str())
             .unwrap_or("default");
@@ -263,7 +263,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Database Integration Server
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     server::McpServer,
     transport::stdio::StdioServerTransport,
     core::{tool::ToolHandler, resource::ResourceHandler},
@@ -311,10 +311,10 @@ struct DatabaseTool {
 
 #[async_trait]
 impl ToolHandler for DatabaseTool {
-    async fn call(&self, arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_rust_sdk::core::error::McpError> {
+    async fn call(&self, arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_protocol_sdk::core::error::McpError> {
         let query = arguments.get("query")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| mcp_rust_sdk::core::error::McpError::ValidationError("Missing query parameter".to_string()))?;
+            .ok_or_else(|| mcp_protocol_sdk::core::error::McpError::ValidationError("Missing query parameter".to_string()))?;
 
         match self.db.query(query).await {
             Ok(result) => Ok(ToolResult {
@@ -335,7 +335,7 @@ struct DatabaseResource {
 
 #[async_trait]
 impl ResourceHandler for DatabaseResource {
-    async fn read(&self, uri: &str, _params: &HashMap<String, String>) -> Result<Vec<ResourceContent>, mcp_rust_sdk::core::error::McpError> {
+    async fn read(&self, uri: &str, _params: &HashMap<String, String>) -> Result<Vec<ResourceContent>, mcp_protocol_sdk::core::error::McpError> {
         if uri.starts_with("db://") {
             let key = &uri[5..];
             match self.db.get(key).await {
@@ -345,14 +345,14 @@ impl ResourceHandler for DatabaseResource {
                     text: Some(data),
                     blob: None,
                 }]),
-                None => Err(mcp_rust_sdk::core::error::McpError::ResourceNotFound(uri.to_string())),
+                None => Err(mcp_protocol_sdk::core::error::McpError::ResourceNotFound(uri.to_string())),
             }
         } else {
-            Err(mcp_rust_sdk::core::error::McpError::ResourceNotFound(uri.to_string()))
+            Err(mcp_protocol_sdk::core::error::McpError::ResourceNotFound(uri.to_string()))
         }
     }
 
-    async fn list(&self) -> Result<Vec<ResourceInfo>, mcp_rust_sdk::core::error::McpError> {
+    async fn list(&self) -> Result<Vec<ResourceInfo>, mcp_protocol_sdk::core::error::McpError> {
         Ok(vec![
             ResourceInfo {
                 uri: "db://user:1".to_string(),
@@ -414,7 +414,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Multi-Client WebSocket Server
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     server::McpServer,
     transport::websocket::WebSocketServerTransport,
     core::tool::ToolHandler,
@@ -439,7 +439,7 @@ struct BroadcastTool {
 
 #[async_trait]
 impl ToolHandler for BroadcastTool {
-    async fn call(&self, arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_rust_sdk::core::error::McpError> {
+    async fn call(&self, arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_protocol_sdk::core::error::McpError> {
         let user = arguments.get("user")
             .and_then(|v| v.as_str())
             .unwrap_or("Anonymous");
@@ -471,7 +471,7 @@ struct GetMessagesTool {
 
 #[async_trait]
 impl ToolHandler for GetMessagesTool {
-    async fn call(&self, _arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_rust_sdk::core::error::McpError> {
+    async fn call(&self, _arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_protocol_sdk::core::error::McpError> {
         let state = self.state.read().await;
         let messages = state.messages.join("\n");
         
@@ -525,7 +525,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Client with Session Management
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     client::{McpClient, ClientSession},
     client::session::SessionConfig,
     transport::websocket::WebSocketClientTransport,
@@ -596,7 +596,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 A server that provides file system operations.
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     server::McpServer,
     transport::http::HttpServerTransport,
     core::{tool::ToolHandler, resource::ResourceHandler},
@@ -611,10 +611,10 @@ struct ReadFileTool;
 
 #[async_trait]
 impl ToolHandler for ReadFileTool {
-    async fn call(&self, arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_rust_sdk::core::error::McpError> {
+    async fn call(&self, arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_protocol_sdk::core::error::McpError> {
         let path = arguments.get("path")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| mcp_rust_sdk::core::error::McpError::ValidationError("Missing path parameter".to_string()))?;
+            .ok_or_else(|| mcp_protocol_sdk::core::error::McpError::ValidationError("Missing path parameter".to_string()))?;
 
         match fs::read_to_string(path).await {
             Ok(content) => Ok(ToolResult {
@@ -633,13 +633,13 @@ struct WriteFileTool;
 
 #[async_trait]
 impl ToolHandler for WriteFileTool {
-    async fn call(&self, arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_rust_sdk::core::error::McpError> {
+    async fn call(&self, arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_protocol_sdk::core::error::McpError> {
         let path = arguments.get("path")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| mcp_rust_sdk::core::error::McpError::ValidationError("Missing path parameter".to_string()))?;
+            .ok_or_else(|| mcp_protocol_sdk::core::error::McpError::ValidationError("Missing path parameter".to_string()))?;
         let content = arguments.get("content")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| mcp_rust_sdk::core::error::McpError::ValidationError("Missing content parameter".to_string()))?;
+            .ok_or_else(|| mcp_protocol_sdk::core::error::McpError::ValidationError("Missing content parameter".to_string()))?;
 
         match fs::write(path, content).await {
             Ok(_) => Ok(ToolResult {

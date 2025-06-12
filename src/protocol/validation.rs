@@ -417,14 +417,14 @@ pub fn validate_method_name(method: &str) -> McpResult<()> {
 }
 
 /// Validates server capabilities
-pub fn validate_server_capabilities(capabilities: &ServerCapabilities) -> McpResult<()> {
+pub fn validate_server_capabilities(_capabilities: &ServerCapabilities) -> McpResult<()> {
     // All capability structures are currently valid if they exist
     // Future versions might add validation for specific capability values
     Ok(())
 }
 
 /// Validates client capabilities
-pub fn validate_client_capabilities(capabilities: &ClientCapabilities) -> McpResult<()> {
+pub fn validate_client_capabilities(_capabilities: &ClientCapabilities) -> McpResult<()> {
     // All capability structures are currently valid if they exist
     // Future versions might add validation for specific capability values
     Ok(())

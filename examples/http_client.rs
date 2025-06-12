@@ -11,6 +11,7 @@ use mcp_protocol_sdk::{
     client::{ClientSession, McpClient},
     core::error::McpResult,
     transport::http::HttpClientTransport,
+    Content,
 };
 
 #[tokio::main]
@@ -112,7 +113,7 @@ async fn demonstrate_http_operations(
                 tracing::info!("HTTP Calculator result:");
                 for content in &result.content {
                     match content {
-                        mcp_rust_sdk::protocol::types::Content::Text { text } => {
+                        Content::Text { text } => {
                             tracing::info!("  {}", text);
                         }
                         _ => tracing::info!("  (non-text content)"),
@@ -140,7 +141,7 @@ async fn demonstrate_http_operations(
                 tracing::info!("Power operation result:");
                 for content in &result.content {
                     match content {
-                        mcp_rust_sdk::protocol::types::Content::Text { text } => {
+                        Content::Text { text } => {
                             tracing::info!("  {}", text);
                         }
                         _ => tracing::info!("  (non-text content)"),

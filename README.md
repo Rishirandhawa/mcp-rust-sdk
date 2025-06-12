@@ -34,7 +34,7 @@ The **Model Context Protocol (MCP)** is revolutionizing how AI assistants intera
 ### **30-Second Server**
 
 ```rust
-use mcp_rust_sdk::{server::McpServer, transport::stdio::StdioServerTransport};
+use mcp_protocol_sdk::{server::McpServer, transport::stdio::StdioServerTransport};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### **Simple Client Connection**
 
 ```rust
-use mcp_rust_sdk::{client::{McpClient, ClientSession}, transport::websocket::WebSocketClientTransport};
+use mcp_protocol_sdk::{client::{McpClient, ClientSession}, transport::websocket::WebSocketClientTransport};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

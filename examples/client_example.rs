@@ -12,6 +12,7 @@ use mcp_protocol_sdk::{
     client::{ClientSession, McpClient},
     core::error::McpResult,
     transport::stdio::StdioClientTransport,
+    Content, PromptContent,
 };
 
 #[tokio::main]
@@ -112,7 +113,7 @@ async fn demonstrate_operations(
                 tracing::info!("Calculator result:");
                 for content in &result.content {
                     match content {
-                        mcp_rust_sdk::protocol::types::Content::Text { text } => {
+                        Content::Text { text } => {
                             tracing::info!("  {}", text);
                         }
                         _ => tracing::info!("  (non-text content)"),
@@ -137,7 +138,7 @@ async fn demonstrate_operations(
                 tracing::info!("Echo result:");
                 for content in &result.content {
                     match content {
-                        mcp_rust_sdk::protocol::types::Content::Text { text } => {
+                        Content::Text { text } => {
                             tracing::info!("  {}", text);
                         }
                         _ => tracing::info!("  (non-text content)"),
@@ -231,7 +232,7 @@ async fn demonstrate_operations(
                 for (i, message) in result.messages.iter().enumerate() {
                     tracing::info!("  Message {}: [{}]", i + 1, message.role);
                     match &message.content {
-                        mcp_rust_sdk::protocol::types::PromptContent::Text { text, .. } => {
+                        PromptContent::Text { text, .. } => {
                             tracing::info!("    {}", text);
                         }
                         _ => tracing::info!("    (non-text content)"),

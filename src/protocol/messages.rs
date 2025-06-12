@@ -446,9 +446,15 @@ impl SamplingMessage {
     }
 }
 
+impl Default for ModelPreferences {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ModelPreferences {
     /// Create model preferences with default values
-    pub fn default() -> Self {
+    pub fn new() -> Self {
         Self {
             cost_priority: None,
             speed_priority: None,

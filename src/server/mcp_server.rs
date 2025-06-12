@@ -62,12 +62,13 @@ pub struct McpServer {
     /// Server state
     state: Arc<RwLock<ServerState>>,
     /// Request ID counter
+    #[allow(dead_code)]
     request_counter: Arc<Mutex<u64>>,
 }
 
 /// Internal server state
 #[derive(Debug, Clone, PartialEq)]
-enum ServerState {
+pub enum ServerState {
     /// Server is not yet initialized
     Uninitialized,
     /// Server is initializing
@@ -741,6 +742,7 @@ impl McpServer {
     // Utility Methods
     // ========================================================================
 
+    #[allow(dead_code)]
     async fn next_request_id(&self) -> u64 {
         let mut counter = self.request_counter.lock().await;
         *counter += 1;

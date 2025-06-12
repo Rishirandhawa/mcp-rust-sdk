@@ -31,7 +31,7 @@ mcp-rust-sdk = { version = "0.1.0", features = ["full"] }
 Let's create a simple echo server:
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     server::McpServer,
     transport::stdio::StdioServerTransport,
     core::tool::ToolHandler,
@@ -46,7 +46,7 @@ struct EchoTool;
 
 #[async_trait]
 impl ToolHandler for EchoTool {
-    async fn call(&self, arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_rust_sdk::core::error::McpError> {
+    async fn call(&self, arguments: HashMap<String, Value>) -> Result<ToolResult, mcp_protocol_sdk::core::error::McpError> {
         let message = arguments.get("message")
             .and_then(|v| v.as_str())
             .unwrap_or("Hello, World!");
@@ -93,7 +93,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 Now let's create a client to connect to the server:
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     client::{McpClient, ClientSession},
     transport::stdio::StdioClientTransport,
 };
@@ -187,7 +187,7 @@ server.add_tool(
 ### Add Resources
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     core::resource::ResourceHandler,
     protocol::types::{ResourceInfo, ResourceContent},
 };
@@ -242,7 +242,7 @@ server.add_resource_detailed(
 #### HTTP Server
 
 ```rust
-use mcp_rust_sdk::transport::http::HttpServerTransport;
+use mcp_protocol_sdk::transport::http::HttpServerTransport;
 
 let transport = HttpServerTransport::new("0.0.0.0:3000");
 server.start(transport).await?;
@@ -255,7 +255,7 @@ server.start(transport).await?;
 #### WebSocket Server
 
 ```rust
-use mcp_rust_sdk::transport::websocket::WebSocketServerTransport;
+use mcp_protocol_sdk::transport::websocket::WebSocketServerTransport;
 
 let transport = WebSocketServerTransport::new("0.0.0.0:8080");
 server.start(transport).await?;
@@ -288,7 +288,7 @@ match client.call_tool("my_tool".to_string(), None).await {
 ### Session Configuration
 
 ```rust
-use mcp_rust_sdk::client::session::SessionConfig;
+use mcp_protocol_sdk::client::session::SessionConfig;
 
 let session_config = SessionConfig {
     auto_reconnect: true,

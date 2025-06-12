@@ -23,7 +23,7 @@ The **Model Context Protocol (MCP)** is revolutionizing how AI assistants intera
 ### Server in 30 seconds
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     server::McpServer,
     transport::stdio::StdioServerTransport,
     core::tool::ToolHandler,
@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### Client Connection
 
 ```rust
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     client::{McpClient, ClientSession},
     transport::websocket::WebSocketClientTransport,
 };

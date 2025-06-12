@@ -325,7 +325,7 @@ impl ResourceHandler for FileSystemResource {
         let full_path = self.base_path.join(file_path);
 
         // Security check - ensure path is within base directory
-        let canonical_base = self.base_path.canonicalize().map_err(|e| McpError::io(e))?;
+        let canonical_base = self.base_path.canonicalize().map_err(McpError::io)?;
         let canonical_target = full_path
             .canonicalize()
             .map_err(|_| McpError::ResourceNotFound(uri.to_string()))?;
@@ -359,9 +359,9 @@ impl ResourceHandler for FileSystemResource {
         while let Some(dir_path) = stack.pop() {
             let mut dir = tokio::fs::read_dir(&dir_path)
                 .await
-                .map_err(|e| McpError::io(e))?;
+                .map_err(McpError::io)?;
 
-            while let Some(entry) = dir.next_entry().await.map_err(|e| McpError::io(e))? {
+            while let Some(entry) = dir.next_entry().await.map_err(McpError::io)? {
                 let path = entry.path();
 
                 if path.is_dir() {

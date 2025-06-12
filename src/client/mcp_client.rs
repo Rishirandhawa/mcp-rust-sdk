@@ -7,7 +7,6 @@
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::sync::{Mutex, RwLock};
 
 use crate::core::error::{McpError, McpResult};
@@ -502,7 +501,7 @@ impl McpClient {
             .result
             .ok_or_else(|| McpError::Protocol("Missing result in response".to_string()))?;
 
-        serde_json::from_value(result).map_err(|e| McpError::Serialization(e))
+        serde_json::from_value(result).map_err(McpError::Serialization)
     }
 
     /// Ensure the client is connected

@@ -3,13 +3,12 @@
 //! This module provides session management for MCP clients, including connection
 //! state tracking, notification handling, and automatic reconnection capabilities.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, mpsc, watch, Mutex, RwLock};
 use tokio::time::{sleep, timeout};
 
-use crate::client::mcp_client::{ClientConfig, McpClient};
+use crate::client::mcp_client::McpClient;
 use crate::core::error::{McpError, McpResult};
 use crate::protocol::{messages::*, types::*};
 use crate::transport::traits::Transport;
@@ -286,7 +285,7 @@ impl ClientSession {
 
     /// Start background tasks (notification handling, heartbeat)
     async fn start_background_tasks(&self) -> McpResult<()> {
-        let (shutdown_tx, shutdown_rx): (broadcast::Sender<()>, broadcast::Receiver<()>) =
+        let (_shutdown_tx, shutdown_rx): (broadcast::Sender<()>, broadcast::Receiver<()>) =
             broadcast::channel(16);
         {
             let mut shutdown_guard = self.shutdown_tx.lock().await;
@@ -392,7 +391,7 @@ impl ClientSession {
         }
 
         // Broadcast the state change
-        if let Err(_) = self.state_tx.send(new_state) {
+        if self.state_tx.send(new_state).is_err() {
             // Receiver may have been dropped, which is okay
         }
 
@@ -558,7 +557,7 @@ mod tests {
                 MCP_PROTOCOL_VERSION.to_string(),
             );
             JsonRpcResponse::success(serde_json::Value::from(1), init_result)
-                .map_err(|e| McpError::Serialization(e))
+                .map_err(McpError::Serialization)
         }
 
         async fn send_notification(&mut self, _notification: JsonRpcNotification) -> McpResult<()> {
@@ -673,7 +672,7 @@ mod tests {
         };
         let session = ClientSession::with_config(client, config.clone());
 
-        assert_eq!(session.config().auto_reconnect, false);
+        assert!(!session.config().auto_reconnect);
         assert_eq!(session.config().max_reconnect_attempts, 10);
         assert_eq!(session.config().reconnect_delay_ms, 2000);
     }

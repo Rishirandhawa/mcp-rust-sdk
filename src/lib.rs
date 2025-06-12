@@ -16,7 +16,7 @@
 //! ### Server Example
 //!
 //! ```rust,no_run
-//! use mcp_rust_sdk::{
+//! use mcp_protocol_sdk::{
 //!     server::McpServer,
 //!     core::{tool::ToolHandler, error::McpResult},
 //!     protocol::types::{Content, ToolResult},

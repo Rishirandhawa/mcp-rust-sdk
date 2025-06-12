@@ -108,13 +108,13 @@ impl std::fmt::Debug for Tool {
 ///
 /// # Examples
 /// ```rust
-/// use mcp_rust_sdk::{tool, core::tool::ToolHandler};
+/// use mcp_protocol_sdk::{tool, core::tool::ToolHandler};
 /// use serde_json::json;
 ///
 /// struct MyHandler;
 /// #[async_trait::async_trait]
 /// impl ToolHandler for MyHandler {
-///     async fn call(&self, _args: std::collections::HashMap<String, serde_json::Value>) -> mcp_rust_sdk::McpResult<mcp_rust_sdk::protocol::types::ToolResult> {
+///     async fn call(&self, _args: std::collections::HashMap<String, serde_json::Value>) -> mcp_protocol_sdk::McpResult<mcp_protocol_sdk::protocol::types::ToolResult> {
 ///         // Implementation here
 ///         todo!()
 ///     }
