@@ -34,7 +34,7 @@ tower = { version = "0.4", optional = true }
 tower-http = { version = "0.5", features = ["cors"], optional = true }
 
 # WebSocket support
-tokio-tungstenite = { version = "0.20", optional = true }
+tokio-tungstenite = { version = "0.26", optional = true }
 futures-util = { version = "0.3", optional = true }
 
 # Utilities
