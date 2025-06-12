@@ -1,0 +1,107 @@
+[package]
+name = "mcp-rust-sdk"
+version = "0.1.0"
+edition = "2021"
+authors = ["Rishi Randhawa <rishi.randhawa@example.com>"]
+description = "Rust SDK for the Model Context Protocol (MCP)"
+license = "MIT"
+repository = "https://github.com/rishirandhawa/mcp-rust-sdk"
+keywords = ["mcp", "ai", "llm", "protocol", "jsonrpc"]
+categories = ["api-bindings", "network-programming", "development-tools"]
+readme = "README.md"
+homepage = "https://modelcontextprotocol.io"
+documentation = "https://docs.rs/mcp-rust-sdk"
+
+[lib]
+name = "mcp_rust_sdk"
+path = "src/lib.rs"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["sync"], optional = true }
+futures = { version = "0.3", optional = true }
+async-trait = "0.1.74"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# HTTP client/server
+reqwest = { version = "0.11", features = ["json", "stream"], optional = true }
+axum = { version = "0.7", optional = true }
+tower = { version = "0.4", optional = true }
+tower-http = { version = "0.5", features = ["cors"], optional = true }
+
+# WebSocket support
+tokio-tungstenite = { version = "0.20", optional = true }
+futures-util = { version = "0.3", optional = true }
+
+# Utilities
+uuid = { version = "1.6", features = ["v4", "serde"] }
+url = "2.5"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", optional = true }
+chrono = { version = "0.4", features = ["serde"], optional = true }
+
+# Schema validation
+jsonschema = { version = "0.17", optional = true }
+
+# Process management for stdio
+tokio-process = { version = "0.2", optional = true }
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.8"
+criterion = "0.5"
+pretty_assertions = "1.4"
+chrono = { version = "0.4", features = ["serde"] }
+
+[features]
+default = ["stdio", "tracing-subscriber"]
+full = ["stdio", "http", "websocket", "validation", "tracing-subscriber", "chrono"]
+stdio = ["tokio-process"]
+http = ["axum", "tower", "tower-http", "reqwest", "chrono", "tokio-stream", "futures"]
+websocket = ["tokio-tungstenite", "http", "futures", "futures-util"]
+validation = ["jsonschema"]
+
+[[example]]
+name = "simple_server"
+path = "examples/simple_server.rs"
+
+[[example]]
+name = "echo_server"
+path = "examples/echo_server.rs"
+
+[[example]]
+name = "client_example"
+path = "examples/client_example.rs"
+
+[[example]]
+name = "database_server"
+path = "examples/database_server.rs"
+
+[[example]]
+name = "http_server"
+path = "examples/http_server.rs"
+required-features = ["http"]
+
+[[example]]
+name = "http_client"
+path = "examples/http_client.rs"
+required-features = ["http"]
+
+[[example]]
+name = "websocket_server"
+path = "examples/websocket_server.rs"
+required-features = ["websocket"]
+
+[[example]]
+name = "websocket_client"
+path = "examples/websocket_client.rs"
+required-features = ["websocket"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

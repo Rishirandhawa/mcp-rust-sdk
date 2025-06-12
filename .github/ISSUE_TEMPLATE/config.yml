@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions
+    url: https://github.com/Rishirandhawa/mcp-rust-sdk/discussions
+    about: Ask questions and discuss with the community
+  - name: Model Context Protocol Specification
+    url: https://modelcontextprotocol.io/
+    about: Official MCP documentation and specification
