@@ -1,5 +1,5 @@
 [package]
-name = "mcp-rust-sdk"
+name = "mcp-protocol-sdk"
 version = "0.1.0"
 edition = "2021"
 authors = ["MCP Rust SDK Contributors"]
@@ -13,7 +13,7 @@ homepage = "https://modelcontextprotocol.io"
 documentation = "https://rishirandhawa.github.io/mcp-rust-sdk/"
 
 [lib]
-name = "mcp_rust_sdk"
+name = "mcp_protocol_sdk"
 path = "src/lib.rs"
 
 [dependencies]
