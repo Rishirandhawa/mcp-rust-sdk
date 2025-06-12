@@ -5,6 +5,9 @@ A comprehensive Rust implementation of the Model Context Protocol (MCP), providi
 [![Crates.io](https://img.shields.io/crates/v/mcp-rust-sdk.svg)](https://crates.io/crates/mcp-rust-sdk)
 [![Documentation](https://docs.rs/mcp-rust-sdk/badge.svg)](https://docs.rs/mcp-rust-sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI](https://github.com/rishirandhawa/mcp-rust-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/rishirandhawa/mcp-rust-sdk/actions/workflows/ci.yml)
+[![Security Audit](https://github.com/rishirandhawa/mcp-rust-sdk/actions/workflows/security.yml/badge.svg)](https://github.com/rishirandhawa/mcp-rust-sdk/actions/workflows/security.yml)
+[![codecov](https://codecov.io/gh/rishirandhawa/mcp-rust-sdk/branch/main/graph/badge.svg)](https://codecov.io/gh/rishirandhawa/mcp-rust-sdk)
 
 ## Overview
 
