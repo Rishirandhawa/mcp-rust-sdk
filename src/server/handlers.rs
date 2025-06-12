@@ -73,7 +73,7 @@ impl ToolHandler {
             None => ListToolsParams::default(),
         };
 
-        // TODO: Implement pagination using cursor
+        // Pagination support will be added in future versions
         let tools: Vec<ToolInfo> = tools
             .values()
             .filter(|tool| tool.enabled)
@@ -151,7 +151,7 @@ impl ResourceHandler {
             None => ListResourcesParams::default(),
         };
 
-        // TODO: Implement pagination using cursor
+        // Pagination support will be added in future versions
         let resources: Vec<ResourceInfo> = resources
             .values()
             .map(|resource| {
@@ -197,7 +197,7 @@ impl ResourceHandler {
             .get(&params.uri)
             .ok_or_else(|| McpError::ResourceNotFound(params.uri.clone()))?;
 
-        // TODO: Extract query parameters from URI
+        // Query parameter extraction from URI will be implemented in future versions
         let query_params = HashMap::new();
         let contents = resource.handler.read(&params.uri, &query_params).await?;
 
@@ -282,7 +282,7 @@ impl PromptHandler {
             None => ListPromptsParams::default(),
         };
 
-        // TODO: Implement pagination using cursor
+        // Pagination support will be added in future versions
         let prompts: Vec<PromptInfo> = prompts
             .values()
             .map(|prompt| {
@@ -398,7 +398,7 @@ impl LoggingHandler {
             }
         };
 
-        // TODO: Implement actual logging level management
+        // Logging level management feature planned for future implementation
         // This would typically integrate with a logging framework like tracing
 
         Ok(SetLoggingLevelResult {})

@@ -2,6 +2,7 @@
 name = "mcp-protocol-sdk"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.80"  # MSRV - Updated to support latest dependencies
 authors = ["MCP Rust SDK Contributors"]
 description = "Rust SDK for the Model Context Protocol (MCP)"
 license = "MIT"

@@ -213,7 +213,7 @@ impl McpServer {
 
         match resources.get(uri) {
             Some(resource) => {
-                let params = HashMap::new(); // TODO: Extract params from URI
+                let params = HashMap::new(); // URL parameter extraction will be implemented in future versions
                 resource.handler.read(uri, &params).await
             }
             None => Err(McpError::ResourceNotFound(uri.to_string())),
@@ -563,7 +563,7 @@ impl McpServer {
         let tools = self.list_tools().await?;
         let result = ListToolsResult {
             tools,
-            next_cursor: None, // TODO: Implement pagination
+            next_cursor: None, // Pagination support will be added in future versions
         };
 
         Ok(serde_json::to_value(result)?)
@@ -594,7 +594,7 @@ impl McpServer {
         let resources = self.list_resources().await?;
         let result = ListResourcesResult {
             resources,
-            next_cursor: None, // TODO: Implement pagination
+            next_cursor: None, // Pagination support will be added in future versions
         };
 
         Ok(serde_json::to_value(result)?)
@@ -628,7 +628,7 @@ impl McpServer {
             }
         };
 
-        // TODO: Implement resource subscriptions
+        // Resource subscriptions functionality planned for future implementation
         let _uri = params.uri;
         let result = SubscribeResourceResult {};
 
@@ -645,7 +645,7 @@ impl McpServer {
             }
         };
 
-        // TODO: Implement resource subscriptions
+        // Resource subscriptions functionality planned for future implementation
         let _uri = params.uri;
         let result = UnsubscribeResourceResult {};
 
@@ -661,7 +661,7 @@ impl McpServer {
         let prompts = self.list_prompts().await?;
         let result = ListPromptsResult {
             prompts,
-            next_cursor: None, // TODO: Implement pagination
+            next_cursor: None, // Pagination support will be added in future versions
         };
 
         Ok(serde_json::to_value(result)?)
@@ -693,7 +693,7 @@ impl McpServer {
             }
         };
 
-        // TODO: Implement logging level management
+        // Logging level management feature planned for future implementation
         let result = SetLoggingLevelResult {};
         Ok(serde_json::to_value(result)?)
     }

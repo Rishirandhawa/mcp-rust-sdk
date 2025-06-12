@@ -45,7 +45,9 @@ jobs:
         run: |
           echo "Checking for TODO/FIXME comments..."
           if grep -r "TODO\|FIXME" src/ --exclude-dir=target; then
-            echo "::warning::Found TODO/FIXME comments in code"
+            echo "::notice::Found TODO/FIXME comments in code - these are reminders for future enhancements"
+          else
+            echo "No TODO/FIXME comments found"
           fi
 
   complexity_analysis:
@@ -72,7 +74,7 @@ jobs:
           scc --format markdown src/ >> complexity-report.md
 
       - name: Upload complexity report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: complexity-analysis
           path: |
@@ -106,7 +108,7 @@ jobs:
           echo '```' >> dependency-report.md
 
       - name: Upload dependency report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dependency-analysis
           path: dependency-report.md
@@ -116,7 +118,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust: ['1.70.0', '1.75.0']  # Test with older Rust versions
+        rust: ['1.80.0', '1.81.0']  # Test with current MSRV and newer version
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4

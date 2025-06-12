@@ -100,7 +100,7 @@ jobs:
           echo "Benchmark results available in artifacts." >> comparison.md
 
       - name: Upload comparison
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: benchmark-comparison
           path: |
