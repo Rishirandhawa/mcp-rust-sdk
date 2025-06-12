@@ -7,7 +7,7 @@
 use serde_json::json;
 use std::collections::HashMap;
 
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     client::session::SessionConfig,
     client::{ClientSession, McpClient},
     core::error::McpResult,

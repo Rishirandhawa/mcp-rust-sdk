@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     core::{error::McpResult, tool::ToolHandler},
     protocol::types::{Content, ToolResult},
     server::McpServer,

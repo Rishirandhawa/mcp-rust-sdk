@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
     core::{
         error::{McpError, McpResult},
         prompt::PromptHandler,
