@@ -357,9 +357,7 @@ impl ResourceHandler for FileSystemResource {
         let mut stack = vec![self.base_path.clone()];
 
         while let Some(dir_path) = stack.pop() {
-            let mut dir = tokio::fs::read_dir(&dir_path)
-                .await
-                .map_err(McpError::io)?;
+            let mut dir = tokio::fs::read_dir(&dir_path).await.map_err(McpError::io)?;
 
             while let Some(entry) = dir.next_entry().await.map_err(McpError::io)? {
                 let path = entry.path();

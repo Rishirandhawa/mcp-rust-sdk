@@ -177,8 +177,7 @@ impl Transport for StdioClientTransport {
         }
 
         // Send the request
-        let request_line =
-            serde_json::to_string(&request).map_err(McpError::serialization)?;
+        let request_line = serde_json::to_string(&request).map_err(McpError::serialization)?;
 
         tracing::trace!("Sending: {}", request_line);
 
