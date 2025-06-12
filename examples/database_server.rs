@@ -4,21 +4,21 @@
 //! including storage, retrieval, and query capabilities using an in-memory store.
 
 use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
+    core::{
+        error::{McpError, McpResult},
+        resource::ResourceHandler,
+        tool::ToolHandler,
+    },
+    protocol::types::{Content, ResourceContent, ResourceInfo, ToolResult},
     server::McpServer,
     transport::stdio::StdioServerTransport,
-    core::{
-        tool::ToolHandler,
-        resource::ResourceHandler,
-        error::{McpResult, McpError},
-    },
-    protocol::types::{Content, ToolResult, ResourceInfo, ResourceContent},
 };
 
 /// In-memory database store
@@ -41,11 +41,13 @@ struct StoreHandler {
 #[async_trait]
 impl ToolHandler for StoreHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<ToolResult> {
-        let id = arguments.get("id")
+        let id = arguments
+            .get("id")
             .and_then(|v| v.as_str())
             .ok_or_else(|| McpError::Validation("Missing 'id' parameter".to_string()))?;
 
-        let data = arguments.get("data")
+        let data = arguments
+            .get("data")
             .ok_or_else(|| McpError::Validation("Missing 'data' parameter".to_string()))?;
 
         let now = chrono::Utc::now();
@@ -81,12 +83,13 @@ struct RetrieveHandler {
 #[async_trait]
 impl ToolHandler for RetrieveHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<ToolResult> {
-        let id = arguments.get("id")
+        let id = arguments
+            .get("id")
             .and_then(|v| v.as_str())
             .ok_or_else(|| McpError::Validation("Missing 'id' parameter".to_string()))?;
 
         let db = self.db.read().await;
-        
+
         match db.get(id) {
             Some(record) => {
                 let response = json!({
@@ -101,12 +104,10 @@ impl ToolHandler for RetrieveHandler {
                     is_error: None,
                 })
             }
-            None => {
-                Ok(ToolResult {
-                    content: vec![Content::text(format!("No record found with ID: {}", id))],
-                    is_error: Some(true),
-                })
-            }
+            None => Ok(ToolResult {
+                content: vec![Content::text(format!("No record found with ID: {}", id))],
+                is_error: Some(true),
+            }),
         }
     }
 }
@@ -119,13 +120,15 @@ struct ListHandler {
 #[async_trait]
 impl ToolHandler for ListHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<ToolResult> {
-        let limit = arguments.get("limit")
+        let limit = arguments
+            .get("limit")
             .and_then(|v| v.as_u64())
             .unwrap_or(10)
             .min(100) as usize; // Cap at 100 records
 
         let db = self.db.read().await;
-        let records: Vec<_> = db.values()
+        let records: Vec<_> = db
+            .values()
             .take(limit)
             .map(|record| {
                 json!({
@@ -158,25 +161,22 @@ struct DeleteHandler {
 #[async_trait]
 impl ToolHandler for DeleteHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<ToolResult> {
-        let id = arguments.get("id")
+        let id = arguments
+            .get("id")
             .and_then(|v| v.as_str())
             .ok_or_else(|| McpError::Validation("Missing 'id' parameter".to_string()))?;
 
         let mut db = self.db.write().await;
-        
+
         match db.remove(id) {
-            Some(_) => {
-                Ok(ToolResult {
-                    content: vec![Content::text(format!("Deleted record with ID: {}", id))],
-                    is_error: None,
-                })
-            }
-            None => {
-                Ok(ToolResult {
-                    content: vec![Content::text(format!("No record found with ID: {}", id))],
-                    is_error: Some(true),
-                })
-            }
+            Some(_) => Ok(ToolResult {
+                content: vec![Content::text(format!("Deleted record with ID: {}", id))],
+                is_error: None,
+            }),
+            None => Ok(ToolResult {
+                content: vec![Content::text(format!("No record found with ID: {}", id))],
+                is_error: Some(true),
+            }),
         }
     }
 }
@@ -188,14 +188,18 @@ struct DatabaseResourceHandler {
 
 #[async_trait]
 impl ResourceHandler for DatabaseResourceHandler {
-    async fn read(&self, uri: &str, _params: &HashMap<String, String>) -> McpResult<Vec<ResourceContent>> {
+    async fn read(
+        &self,
+        uri: &str,
+        _params: &HashMap<String, String>,
+    ) -> McpResult<Vec<ResourceContent>> {
         match uri {
             "db:///all" => {
                 let db = self.db.read().await;
                 let records: Vec<_> = db.values().collect();
-                
+
                 let content = serde_json::to_string_pretty(&records)?;
-                
+
                 Ok(vec![ResourceContent {
                     uri: uri.to_string(),
                     mime_type: Some("application/json".to_string()),
@@ -237,7 +241,7 @@ impl ResourceHandler for DatabaseResourceHandler {
             _ if uri.starts_with("db:///record/") => {
                 let id = uri.strip_prefix("db:///record/").unwrap();
                 let db = self.db.read().await;
-                
+
                 match db.get(id) {
                     Some(record) => {
                         let content = serde_json::to_string_pretty(record)?;
@@ -301,10 +305,7 @@ async fn main() -> McpResult<()> {
     // Initialize logging
     tracing_subscriber::fmt::init();
 
-    let mut server = McpServer::new(
-        "database-server".to_string(),
-        "1.0.0".to_string(),
-    );
+    let mut server = McpServer::new("database-server".to_string(), "1.0.0".to_string());
 
     // Create shared database
     let db: Database = Arc::new(RwLock::new(HashMap::new()));
@@ -312,40 +313,44 @@ async fn main() -> McpResult<()> {
     // Add tools
     tracing::info!("Adding database tools...");
 
-    server.add_tool(
-        "store".to_string(),
-        Some("Store a record in the database".to_string()),
-        json!({
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string",
-                    "description": "Unique identifier for the record"
+    server
+        .add_tool(
+            "store".to_string(),
+            Some("Store a record in the database".to_string()),
+            json!({
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the record"
+                    },
+                    "data": {
+                        "description": "The data to store (can be any JSON value)"
+                    }
                 },
-                "data": {
-                    "description": "The data to store (can be any JSON value)"
-                }
-            },
-            "required": ["id", "data"]
-        }),
-        StoreHandler { db: db.clone() },
-    ).await?;
+                "required": ["id", "data"]
+            }),
+            StoreHandler { db: db.clone() },
+        )
+        .await?;
 
-    server.add_tool(
-        "retrieve".to_string(),
-        Some("Retrieve a record from the database".to_string()),
-        json!({
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string",
-                    "description": "Unique identifier of the record to retrieve"
-                }
-            },
-            "required": ["id"]
-        }),
-        RetrieveHandler { db: db.clone() },
-    ).await?;
+    server
+        .add_tool(
+            "retrieve".to_string(),
+            Some("Retrieve a record from the database".to_string()),
+            json!({
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier of the record to retrieve"
+                    }
+                },
+                "required": ["id"]
+            }),
+            RetrieveHandler { db: db.clone() },
+        )
+        .await?;
 
     server.add_tool(
         "list".to_string(),
@@ -365,62 +370,72 @@ async fn main() -> McpResult<()> {
         ListHandler { db: db.clone() },
     ).await?;
 
-    server.add_tool(
-        "delete".to_string(),
-        Some("Delete a record from the database".to_string()),
-        json!({
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string",
-                    "description": "Unique identifier of the record to delete"
-                }
-            },
-            "required": ["id"]
-        }),
-        DeleteHandler { db: db.clone() },
-    ).await?;
+    server
+        .add_tool(
+            "delete".to_string(),
+            Some("Delete a record from the database".to_string()),
+            json!({
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier of the record to delete"
+                    }
+                },
+                "required": ["id"]
+            }),
+            DeleteHandler { db: db.clone() },
+        )
+        .await?;
 
     // Add database resource
     tracing::info!("Adding database resource...");
-    
-    server.add_resource_detailed(
-        ResourceInfo {
-            uri: "db:///".to_string(),
-            name: "Database".to_string(),
-            description: Some("In-memory database with JSON records".to_string()),
-            mime_type: Some("application/json".to_string()),
-        },
-        DatabaseResourceHandler { db: db.clone() },
-    ).await?;
+
+    server
+        .add_resource_detailed(
+            ResourceInfo {
+                uri: "db:///".to_string(),
+                name: "Database".to_string(),
+                description: Some("In-memory database with JSON records".to_string()),
+                mime_type: Some("application/json".to_string()),
+            },
+            DatabaseResourceHandler { db: db.clone() },
+        )
+        .await?;
 
     // Insert some sample data
     tracing::info!("Inserting sample data...");
     {
         let mut db_guard = db.write().await;
         let now = chrono::Utc::now();
-        
-        db_guard.insert("user1".to_string(), DatabaseRecord {
-            id: "user1".to_string(),
-            data: json!({
-                "name": "Alice",
-                "email": "alice@example.com",
-                "age": 30
-            }),
-            created_at: now,
-            updated_at: now,
-        });
 
-        db_guard.insert("user2".to_string(), DatabaseRecord {
-            id: "user2".to_string(),
-            data: json!({
-                "name": "Bob",
-                "email": "bob@example.com",
-                "age": 25
-            }),
-            created_at: now,
-            updated_at: now,
-        });
+        db_guard.insert(
+            "user1".to_string(),
+            DatabaseRecord {
+                id: "user1".to_string(),
+                data: json!({
+                    "name": "Alice",
+                    "email": "alice@example.com",
+                    "age": 30
+                }),
+                created_at: now,
+                updated_at: now,
+            },
+        );
+
+        db_guard.insert(
+            "user2".to_string(),
+            DatabaseRecord {
+                id: "user2".to_string(),
+                data: json!({
+                    "name": "Bob",
+                    "email": "bob@example.com",
+                    "age": 25
+                }),
+                created_at: now,
+                updated_at: now,
+            },
+        );
     }
 
     // Start the server
@@ -435,7 +450,9 @@ async fn main() -> McpResult<()> {
     tracing::info!("  - delete: Remove a record");
 
     // Keep running until interrupted
-    tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl+c");
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Failed to listen for ctrl+c");
     server.stop().await?;
 
     Ok(())

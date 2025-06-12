@@ -2,92 +2,74 @@
 
 ## Supported Versions
 
-We release patches for security vulnerabilities. Which versions are eligible
-for receiving such patches depends on the CVSS v3.0 Rating:
+We actively support security updates for the following versions:
 
-| CVSS v3.0 | Supported Versions                        |
-| --------- | ----------------------------------------- |
-| 9.0-10.0  | Releases within the last three months    |
-| 4.0-8.9   | Most recent release                       |
+| Version | Supported          |
+| ------- | ------------------ |
+| 0.3.x   | :white_check_mark: |
+| 0.2.x   | :x:                |
+| 0.1.x   | :x:                |
 
 ## Reporting a Vulnerability
 
-Please report (suspected) security vulnerabilities to **rishi.randhawa@example.com**.
-You will receive a response from us within 48 hours. If the issue is confirmed,
-we will release a patch as soon as possible depending on complexity but historically
-within a few days.
+If you discover a security vulnerability in MCP Rust SDK, please report it responsibly:
 
-### Reporting Process
+### How to Report
 
-1. **Email**: Send your findings to rishi.randhawa@example.com
-2. **Include**: As much information as possible about the vulnerability
-3. **Wait**: We will acknowledge receipt within 48 hours
-4. **Collaborate**: We may ask for additional information or guidance
-
-### What to Include
-
-When reporting a security vulnerability, please include:
-
-- Description of the vulnerability
-- Steps to reproduce the issue
-- Potential impact of the vulnerability
-- Any suggested fixes or mitigations
-- Your contact information for follow-up
+1. **Do NOT create a public GitHub issue** for security vulnerabilities
+2. Send an email to: [your-security-email@example.com]
+3. Include as much detail as possible:
+   - Description of the vulnerability
+   - Steps to reproduce
+   - Potential impact
+   - Suggested fix (if any)
 
 ### What to Expect
 
-- **Acknowledgment**: We'll acknowledge receipt within 48 hours
-- **Assessment**: We'll assess the vulnerability and determine severity
-- **Communication**: We'll keep you informed of our progress
-- **Fix**: We'll work on a fix and coordinate disclosure
-- **Credit**: We'll credit you in the security advisory (if desired)
-
-### Scope
-
-This security policy applies to:
-
-- All versions of the mcp-rust-sdk crate
-- Security vulnerabilities in the core protocol implementation
-- Transport layer security issues
-- Authentication and authorization bypasses
-- Code injection vulnerabilities
-
-### Out of Scope
-
-The following are generally considered out of scope:
-
-- Social engineering attacks
-- Physical attacks
-- Denial of service attacks that require unreasonable resource consumption
-- Vulnerabilities in third-party dependencies (please report to the respective maintainers)
+- **Initial Response**: Within 48 hours
+- **Status Update**: Within 7 days with preliminary assessment
+- **Resolution Timeline**: Varies by severity, typically 30-90 days
 
 ### Security Best Practices
 
-When using this SDK, please consider these security best practices:
+When using MCP Rust SDK:
 
-1. **Validate Input**: Always validate and sanitize input to your tools and resources
-2. **Least Privilege**: Run servers with minimal required permissions
-3. **Secure Transport**: Use TLS/SSL for HTTP and WebSocket transports in production
-4. **Authentication**: Implement proper authentication for your MCP servers
-5. **Rate Limiting**: Implement rate limiting to prevent abuse
-6. **Logging**: Enable security logging to detect and respond to threats
-7. **Updates**: Keep dependencies and the SDK updated to the latest version
+1. **Keep Dependencies Updated**: Regularly run `cargo update` and `cargo audit`
+2. **Validate Input**: Always validate data from external sources
+3. **Use TLS**: Enable TLS for HTTP and WebSocket transports in production
+4. **Limit Permissions**: Run with minimal required permissions
+5. **Monitor Dependencies**: Use `cargo-deny` to check for security advisories
 
-### Responsible Disclosure
+### Security Features
 
-We ask that you:
+MCP Rust SDK includes several security features:
 
-- Allow us reasonable time to address the issue before public disclosure
-- Avoid exploiting the vulnerability or demonstrating additional impact
-- Avoid accessing, modifying, or deleting other users' data
-- Avoid degrading the user experience for other users
+- Input validation for all protocol messages
+- Safe deserialization with serde
+- Memory-safe Rust code
+- Optional TLS support for network transports
+- Resource access controls
 
-### Recognition
+### Dependency Security
 
-We believe in recognizing security researchers who help make our software safer:
+We use automated tools to monitor dependencies:
 
-- We'll acknowledge your contribution in the security advisory
-- We'll include your name in our Hall of Fame (if you wish)
-- For significant findings, we'll provide public recognition
+- `cargo-audit` for security advisories
+- `cargo-deny` for license and dependency checking
+- Dependabot for automated updates
 
-Thank you for helping keep the MCP Rust SDK secure!
+### Security Testing
+
+Our security testing includes:
+
+- Static analysis with Clippy
+- Dependency vulnerability scanning
+- Fuzzing of protocol parsing (planned)
+- Memory safety verification
+
+## Security Contacts
+
+- Security Team: [security@example.com]
+- Project Maintainer: [maintainer@example.com]
+
+Thank you for helping keep MCP Rust SDK secure!

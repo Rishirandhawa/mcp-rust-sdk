@@ -16,9 +16,9 @@ pub mod websocket;
 
 // Re-export commonly used types
 pub use traits::{
-    Transport, ServerTransport, TransportConfig, ConnectionState, 
-    TransportStats, ReconnectableTransport, ReconnectConfig,
-    FilterableTransport, EventEmittingTransport, TransportEvent
+    ConnectionState, EventEmittingTransport, FilterableTransport, ReconnectConfig,
+    ReconnectableTransport, ServerTransport, Transport, TransportConfig, TransportEvent,
+    TransportStats,
 };
 
 // Re-export transport implementations when features are enabled

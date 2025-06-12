@@ -3,11 +3,11 @@
 //! This module provides specialized handlers for different types of MCP requests,
 //! implementing the business logic for each protocol operation.
 
-use std::collections::HashMap;
 use serde_json::Value;
+use std::collections::HashMap;
 
 use crate::core::error::{McpError, McpResult};
-use crate::protocol::{types::*, messages::*};
+use crate::protocol::{messages::*, types::*};
 
 /// Handler for initialization requests
 pub struct InitializeHandler;
@@ -22,7 +22,11 @@ impl InitializeHandler {
         let params: InitializeParams = match params {
             Some(p) => serde_json::from_value(p)
                 .map_err(|e| McpError::Validation(format!("Invalid initialize params: {}", e)))?,
-            None => return Err(McpError::Validation("Missing initialize parameters".to_string())),
+            None => {
+                return Err(McpError::Validation(
+                    "Missing initialize parameters".to_string(),
+                ))
+            }
         };
 
         // Validate protocol version compatibility
@@ -35,11 +39,15 @@ impl InitializeHandler {
 
         // Validate client info
         if params.client_info.name.is_empty() {
-            return Err(McpError::Validation("Client name cannot be empty".to_string()));
+            return Err(McpError::Validation(
+                "Client name cannot be empty".to_string(),
+            ));
         }
 
         if params.client_info.version.is_empty() {
-            return Err(McpError::Validation("Client version cannot be empty".to_string()));
+            return Err(McpError::Validation(
+                "Client version cannot be empty".to_string(),
+            ));
         }
 
         Ok(InitializeResult::new(
@@ -65,8 +73,9 @@ impl ToolHandler {
             None => ListToolsParams::default(),
         };
 
-        // TODO: Implement pagination using cursor
-        let tools: Vec<ToolInfo> = tools.values()
+        // Pagination support will be added in future versions
+        let tools: Vec<ToolInfo> = tools
+            .values()
             .filter(|tool| tool.enabled)
             .map(|tool| {
                 // Convert from core::tool::ToolInfo to protocol::types::ToolInfo
@@ -92,18 +101,28 @@ impl ToolHandler {
         let params: CallToolParams = match params {
             Some(p) => serde_json::from_value(p)
                 .map_err(|e| McpError::Validation(format!("Invalid call tool params: {}", e)))?,
-            None => return Err(McpError::Validation("Missing tool call parameters".to_string())),
+            None => {
+                return Err(McpError::Validation(
+                    "Missing tool call parameters".to_string(),
+                ))
+            }
         };
 
         if params.name.is_empty() {
-            return Err(McpError::Validation("Tool name cannot be empty".to_string()));
+            return Err(McpError::Validation(
+                "Tool name cannot be empty".to_string(),
+            ));
         }
 
-        let tool = tools.get(&params.name)
+        let tool = tools
+            .get(&params.name)
             .ok_or_else(|| McpError::ToolNotFound(params.name.clone()))?;
 
         if !tool.enabled {
-            return Err(McpError::ToolNotFound(format!("Tool '{}' is disabled", params.name)));
+            return Err(McpError::ToolNotFound(format!(
+                "Tool '{}' is disabled",
+                params.name
+            )));
         }
 
         let arguments = params.arguments.unwrap_or_default();
@@ -126,13 +145,15 @@ impl ResourceHandler {
         params: Option<Value>,
     ) -> McpResult<ListResourcesResult> {
         let _params: ListResourcesParams = match params {
-            Some(p) => serde_json::from_value(p)
-                .map_err(|e| McpError::Validation(format!("Invalid list resources params: {}", e)))?,
+            Some(p) => serde_json::from_value(p).map_err(|e| {
+                McpError::Validation(format!("Invalid list resources params: {}", e))
+            })?,
             None => ListResourcesParams::default(),
         };
 
-        // TODO: Implement pagination using cursor
-        let resources: Vec<ResourceInfo> = resources.values()
+        // Pagination support will be added in future versions
+        let resources: Vec<ResourceInfo> = resources
+            .values()
             .map(|resource| {
                 // Convert from core::resource::ResourceInfo to protocol::types::ResourceInfo
                 ResourceInfo {
@@ -156,19 +177,27 @@ impl ResourceHandler {
         params: Option<Value>,
     ) -> McpResult<ReadResourceResult> {
         let params: ReadResourceParams = match params {
-            Some(p) => serde_json::from_value(p)
-                .map_err(|e| McpError::Validation(format!("Invalid read resource params: {}", e)))?,
-            None => return Err(McpError::Validation("Missing resource read parameters".to_string())),
+            Some(p) => serde_json::from_value(p).map_err(|e| {
+                McpError::Validation(format!("Invalid read resource params: {}", e))
+            })?,
+            None => {
+                return Err(McpError::Validation(
+                    "Missing resource read parameters".to_string(),
+                ))
+            }
         };
 
         if params.uri.is_empty() {
-            return Err(McpError::Validation("Resource URI cannot be empty".to_string()));
+            return Err(McpError::Validation(
+                "Resource URI cannot be empty".to_string(),
+            ));
         }
 
-        let resource = resources.get(&params.uri)
+        let resource = resources
+            .get(&params.uri)
             .ok_or_else(|| McpError::ResourceNotFound(params.uri.clone()))?;
 
-        // TODO: Extract query parameters from URI
+        // Query parameter extraction from URI will be implemented in future versions
         let query_params = HashMap::new();
         let contents = resource.handler.read(&params.uri, &query_params).await?;
 
@@ -181,16 +210,24 @@ impl ResourceHandler {
         params: Option<Value>,
     ) -> McpResult<SubscribeResourceResult> {
         let params: SubscribeResourceParams = match params {
-            Some(p) => serde_json::from_value(p)
-                .map_err(|e| McpError::Validation(format!("Invalid subscribe resource params: {}", e)))?,
-            None => return Err(McpError::Validation("Missing resource subscribe parameters".to_string())),
+            Some(p) => serde_json::from_value(p).map_err(|e| {
+                McpError::Validation(format!("Invalid subscribe resource params: {}", e))
+            })?,
+            None => {
+                return Err(McpError::Validation(
+                    "Missing resource subscribe parameters".to_string(),
+                ))
+            }
         };
 
         if params.uri.is_empty() {
-            return Err(McpError::Validation("Resource URI cannot be empty".to_string()));
+            return Err(McpError::Validation(
+                "Resource URI cannot be empty".to_string(),
+            ));
         }
 
-        let resource = resources.get(&params.uri)
+        let resource = resources
+            .get(&params.uri)
             .ok_or_else(|| McpError::ResourceNotFound(params.uri.clone()))?;
 
         resource.handler.subscribe(&params.uri).await?;
@@ -204,16 +241,24 @@ impl ResourceHandler {
         params: Option<Value>,
     ) -> McpResult<UnsubscribeResourceResult> {
         let params: UnsubscribeResourceParams = match params {
-            Some(p) => serde_json::from_value(p)
-                .map_err(|e| McpError::Validation(format!("Invalid unsubscribe resource params: {}", e)))?,
-            None => return Err(McpError::Validation("Missing resource unsubscribe parameters".to_string())),
+            Some(p) => serde_json::from_value(p).map_err(|e| {
+                McpError::Validation(format!("Invalid unsubscribe resource params: {}", e))
+            })?,
+            None => {
+                return Err(McpError::Validation(
+                    "Missing resource unsubscribe parameters".to_string(),
+                ))
+            }
         };
 
         if params.uri.is_empty() {
-            return Err(McpError::Validation("Resource URI cannot be empty".to_string()));
+            return Err(McpError::Validation(
+                "Resource URI cannot be empty".to_string(),
+            ));
         }
 
-        let resource = resources.get(&params.uri)
+        let resource = resources
+            .get(&params.uri)
             .ok_or_else(|| McpError::ResourceNotFound(params.uri.clone()))?;
 
         resource.handler.unsubscribe(&params.uri).await?;
@@ -237,19 +282,22 @@ impl PromptHandler {
             None => ListPromptsParams::default(),
         };
 
-        // TODO: Implement pagination using cursor
-        let prompts: Vec<PromptInfo> = prompts.values()
+        // Pagination support will be added in future versions
+        let prompts: Vec<PromptInfo> = prompts
+            .values()
             .map(|prompt| {
                 // Convert from core::prompt::PromptInfo to protocol::types::PromptInfo
                 PromptInfo {
                     name: prompt.info.name.clone(),
                     description: prompt.info.description.clone(),
                     arguments: prompt.info.arguments.as_ref().map(|args| {
-                        args.iter().map(|arg| PromptArgument {
-                            name: arg.name.clone(),
-                            description: arg.description.clone(),
-                            required: arg.required,
-                        }).collect()
+                        args.iter()
+                            .map(|arg| PromptArgument {
+                                name: arg.name.clone(),
+                                description: arg.description.clone(),
+                                required: arg.required,
+                            })
+                            .collect()
                     }),
                 }
             })
@@ -269,14 +317,21 @@ impl PromptHandler {
         let params: GetPromptParams = match params {
             Some(p) => serde_json::from_value(p)
                 .map_err(|e| McpError::Validation(format!("Invalid get prompt params: {}", e)))?,
-            None => return Err(McpError::Validation("Missing prompt get parameters".to_string())),
+            None => {
+                return Err(McpError::Validation(
+                    "Missing prompt get parameters".to_string(),
+                ))
+            }
         };
 
         if params.name.is_empty() {
-            return Err(McpError::Validation("Prompt name cannot be empty".to_string()));
+            return Err(McpError::Validation(
+                "Prompt name cannot be empty".to_string(),
+            ));
         }
 
-        let prompt = prompts.get(&params.name)
+        let prompt = prompts
+            .get(&params.name)
             .ok_or_else(|| McpError::PromptNotFound(params.name.clone()))?;
 
         let arguments = params.arguments.unwrap_or_default();
@@ -284,20 +339,30 @@ impl PromptHandler {
 
         Ok(GetPromptResult {
             description: result.description,
-            messages: result.messages.into_iter().map(|msg| {
-                // Convert from core::prompt::PromptMessage to protocol::types::PromptMessage  
-                PromptMessage {
-                    role: msg.role,
-                    content: match msg.content {
-                        crate::protocol::types::PromptContent::Text { content_type, text } => {
-                            PromptContent::Text { content_type, text }
-                        }
-                        crate::protocol::types::PromptContent::Image { content_type, data, mime_type } => {
-                            PromptContent::Image { content_type, data, mime_type }
-                        }
-                    },
-                }
-            }).collect(),
+            messages: result
+                .messages
+                .into_iter()
+                .map(|msg| {
+                    // Convert from core::prompt::PromptMessage to protocol::types::PromptMessage
+                    PromptMessage {
+                        role: msg.role,
+                        content: match msg.content {
+                            crate::protocol::types::PromptContent::Text { content_type, text } => {
+                                PromptContent::Text { content_type, text }
+                            }
+                            crate::protocol::types::PromptContent::Image {
+                                content_type,
+                                data,
+                                mime_type,
+                            } => PromptContent::Image {
+                                content_type,
+                                data,
+                                mime_type,
+                            },
+                        },
+                    }
+                })
+                .collect(),
         })
     }
 }
@@ -307,12 +372,12 @@ pub struct SamplingHandler;
 
 impl SamplingHandler {
     /// Handle sampling/createMessage request
-    pub async fn handle_create_message(
-        _params: Option<Value>,
-    ) -> McpResult<CreateMessageResult> {
+    pub async fn handle_create_message(_params: Option<Value>) -> McpResult<CreateMessageResult> {
         // Note: Sampling is typically handled by the client side (LLM),
         // but servers can provide sampling capabilities if they have access to LLMs
-        Err(McpError::Protocol("Sampling not implemented on server side".to_string()))
+        Err(McpError::Protocol(
+            "Sampling not implemented on server side".to_string(),
+        ))
     }
 }
 
@@ -321,18 +386,21 @@ pub struct LoggingHandler;
 
 impl LoggingHandler {
     /// Handle logging/setLevel request
-    pub async fn handle_set_level(
-        params: Option<Value>,
-    ) -> McpResult<SetLoggingLevelResult> {
+    pub async fn handle_set_level(params: Option<Value>) -> McpResult<SetLoggingLevelResult> {
         let _params: SetLoggingLevelParams = match params {
-            Some(p) => serde_json::from_value(p)
-                .map_err(|e| McpError::Validation(format!("Invalid set logging level params: {}", e)))?,
-            None => return Err(McpError::Validation("Missing logging level parameters".to_string())),
+            Some(p) => serde_json::from_value(p).map_err(|e| {
+                McpError::Validation(format!("Invalid set logging level params: {}", e))
+            })?,
+            None => {
+                return Err(McpError::Validation(
+                    "Missing logging level parameters".to_string(),
+                ))
+            }
         };
 
-        // TODO: Implement actual logging level management
+        // Logging level management feature planned for future implementation
         // This would typically integrate with a logging framework like tracing
-        
+
         Ok(SetLoggingLevelResult {})
     }
 }
@@ -366,7 +434,10 @@ pub mod validation {
     /// Validate that a string parameter is not empty
     pub fn require_non_empty_string(value: &str, field_name: &str) -> McpResult<()> {
         if value.is_empty() {
-            Err(McpError::Validation(format!("{} cannot be empty", field_name)))
+            Err(McpError::Validation(format!(
+                "{} cannot be empty",
+                field_name
+            )))
         } else {
             Ok(())
         }
@@ -381,7 +452,7 @@ pub mod validation {
         // Basic URI validation - check for scheme or absolute path
         if !uri.contains("://") && !uri.starts_with('/') && !uri.starts_with("file:") {
             return Err(McpError::Validation(
-                "URI must have a scheme or be an absolute path".to_string()
+                "URI must have a scheme or be an absolute path".to_string(),
             ));
         }
 
@@ -482,7 +553,7 @@ mod tests {
 
         let result = InitializeHandler::handle(&server_info, &capabilities, Some(params)).await;
         assert!(result.is_ok());
-        
+
         let init_result = result.unwrap();
         assert_eq!(init_result.server_info.name, "test-server");
         assert_eq!(init_result.protocol_version, MCP_PROTOCOL_VERSION);
@@ -519,6 +590,7 @@ mod tests {
             LoggingLevel::Info,
             Some("test".to_string()),
             json!({"message": "test log"})
-        ).is_ok());
+        )
+        .is_ok());
     }
 }

@@ -7,15 +7,15 @@ use async_trait::async_trait;
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
-use mcp_rust_sdk::{
+use mcp_protocol_sdk::{
+    core::{
+        error::{McpError, McpResult},
+        resource::ResourceHandler,
+        tool::ToolHandler,
+    },
+    protocol::types::{Content, ResourceContent, ResourceInfo, ToolResult},
     server::McpServer,
     transport::websocket::WebSocketServerTransport,
-    core::{
-        tool::ToolHandler,
-        resource::ResourceHandler,
-        error::{McpResult, McpError},
-    },
-    protocol::types::{Content, ToolResult, ResourceInfo, ResourceContent},
 };
 
 /// WebSocket echo tool with connection info
@@ -24,19 +24,23 @@ struct WebSocketEchoHandler;
 #[async_trait]
 impl ToolHandler for WebSocketEchoHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<ToolResult> {
-        let message = arguments.get("message")
+        let message = arguments
+            .get("message")
             .and_then(|v| v.as_str())
             .unwrap_or("Hello from WebSocket!");
 
-        let add_timestamp = arguments.get("add_timestamp")
+        let add_timestamp = arguments
+            .get("add_timestamp")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
-        let add_connection_info = arguments.get("add_connection_info")
+        let add_connection_info = arguments
+            .get("add_connection_info")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
-        let broadcast = arguments.get("broadcast")
+        let broadcast = arguments
+            .get("broadcast")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
@@ -45,7 +49,11 @@ impl ToolHandler for WebSocketEchoHandler {
         if add_timestamp {
             #[cfg(feature = "chrono")]
             {
-                response = format!("[{}] {}", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC"), response);
+                response = format!(
+                    "[{}] {}",
+                    chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC"),
+                    response
+                );
             }
             #[cfg(not(feature = "chrono"))]
             {
@@ -74,15 +82,18 @@ struct WebSocketChatHandler;
 #[async_trait]
 impl ToolHandler for WebSocketChatHandler {
     async fn call(&self, arguments: HashMap<String, Value>) -> McpResult<ToolResult> {
-        let username = arguments.get("username")
+        let username = arguments
+            .get("username")
             .and_then(|v| v.as_str())
             .unwrap_or("Anonymous");
 
-        let message = arguments.get("message")
+        let message = arguments
+            .get("message")
             .and_then(|v| v.as_str())
             .ok_or_else(|| McpError::Validation("Missing 'message' parameter".to_string()))?;
 
-        let room = arguments.get("room")
+        let room = arguments
+            .get("room")
             .and_then(|v| v.as_str())
             .unwrap_or("general");
 
@@ -96,7 +107,10 @@ impl ToolHandler for WebSocketChatHandler {
         });
 
         Ok(ToolResult {
-            content: vec![Content::text(format!("💬 [{}] {}: {}", room, username, message))],
+            content: vec![Content::text(format!(
+                "💬 [{}] {}: {}",
+                room, username, message
+            ))],
             is_error: None,
         })
     }
@@ -107,7 +121,11 @@ struct WebSocketStatusHandler;
 
 #[async_trait]
 impl ResourceHandler for WebSocketStatusHandler {
-    async fn read(&self, uri: &str, _params: &HashMap<String, String>) -> McpResult<Vec<ResourceContent>> {
+    async fn read(
+        &self,
+        uri: &str,
+        _params: &HashMap<String, String>,
+    ) -> McpResult<Vec<ResourceContent>> {
         match uri {
             "ws://server/status" => {
                 let status = json!({
@@ -121,7 +139,7 @@ impl ResourceHandler for WebSocketStatusHandler {
                     },
                     "capabilities": [
                         "instant messaging",
-                        "real-time notifications", 
+                        "real-time notifications",
                         "persistent connections",
                         "automatic reconnection"
                     ]
@@ -145,7 +163,7 @@ impl ResourceHandler for WebSocketStatusHandler {
                             "messages_received": 38
                         },
                         {
-                            "id": "conn_002", 
+                            "id": "conn_002",
                             "client": "Chat Client",
                             "connected_at": "2024-01-15T10:32:15Z",
                             "messages_sent": 15,
@@ -172,13 +190,17 @@ impl ResourceHandler for WebSocketStatusHandler {
             ResourceInfo {
                 uri: "ws://server/status".to_string(),
                 name: "WebSocket Server Status".to_string(),
-                description: Some("Current status and capabilities of WebSocket server".to_string()),
+                description: Some(
+                    "Current status and capabilities of WebSocket server".to_string(),
+                ),
                 mime_type: Some("application/json".to_string()),
             },
             ResourceInfo {
                 uri: "ws://server/connections".to_string(),
                 name: "Active WebSocket Connections".to_string(),
-                description: Some("Information about currently connected WebSocket clients".to_string()),
+                description: Some(
+                    "Information about currently connected WebSocket clients".to_string(),
+                ),
                 mime_type: Some("application/json".to_string()),
             },
         ])
@@ -199,80 +221,83 @@ async fn main() -> McpResult<()> {
     // Initialize logging
     tracing_subscriber::fmt::init();
 
-    let mut server = McpServer::new(
-        "websocket-mcp-server".to_string(),
-        "1.0.0".to_string(),
-    );
+    let mut server = McpServer::new("websocket-mcp-server".to_string(), "1.0.0".to_string());
 
     // Add WebSocket echo tool
-    server.add_tool(
-        "ws_echo".to_string(),
-        Some("Enhanced echo tool with WebSocket-specific features".to_string()),
-        json!({
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string",
-                    "description": "Message to echo back"
+    server
+        .add_tool(
+            "ws_echo".to_string(),
+            Some("Enhanced echo tool with WebSocket-specific features".to_string()),
+            json!({
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "description": "Message to echo back"
+                    },
+                    "add_timestamp": {
+                        "type": "boolean",
+                        "description": "Add timestamp to the echoed message",
+                        "default": false
+                    },
+                    "add_connection_info": {
+                        "type": "boolean",
+                        "description": "Add WebSocket connection information",
+                        "default": false
+                    },
+                    "broadcast": {
+                        "type": "boolean",
+                        "description": "Mark message as broadcast to all clients",
+                        "default": false
+                    }
                 },
-                "add_timestamp": {
-                    "type": "boolean",
-                    "description": "Add timestamp to the echoed message",
-                    "default": false
-                },
-                "add_connection_info": {
-                    "type": "boolean", 
-                    "description": "Add WebSocket connection information",
-                    "default": false
-                },
-                "broadcast": {
-                    "type": "boolean",
-                    "description": "Mark message as broadcast to all clients", 
-                    "default": false
-                }
-            },
-            "required": ["message"]
-        }),
-        WebSocketEchoHandler,
-    ).await?;
+                "required": ["message"]
+            }),
+            WebSocketEchoHandler,
+        )
+        .await?;
 
     // Add WebSocket chat tool
-    server.add_tool(
-        "ws_chat".to_string(),
-        Some("Real-time chat tool for WebSocket connections".to_string()),
-        json!({
-            "type": "object",
-            "properties": {
-                "username": {
-                    "type": "string",
-                    "description": "Username of the chat participant",
-                    "default": "Anonymous"
+    server
+        .add_tool(
+            "ws_chat".to_string(),
+            Some("Real-time chat tool for WebSocket connections".to_string()),
+            json!({
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "description": "Username of the chat participant",
+                        "default": "Anonymous"
+                    },
+                    "message": {
+                        "type": "string",
+                        "description": "Chat message to send"
+                    },
+                    "room": {
+                        "type": "string",
+                        "description": "Chat room name",
+                        "default": "general"
+                    }
                 },
-                "message": {
-                    "type": "string",
-                    "description": "Chat message to send"
-                },
-                "room": {
-                    "type": "string",
-                    "description": "Chat room name",
-                    "default": "general"
-                }
-            },
-            "required": ["message"]
-        }),
-        WebSocketChatHandler,
-    ).await?;
+                "required": ["message"]
+            }),
+            WebSocketChatHandler,
+        )
+        .await?;
 
     // Add WebSocket status resources
-    server.add_resource_detailed(
-        ResourceInfo {
-            uri: "ws://server/".to_string(),
-            name: "WebSocket Server Resources".to_string(),
-            description: Some("WebSocket server status and connection information".to_string()),
-            mime_type: Some("application/json".to_string()),
-        },
-        WebSocketStatusHandler,
-    ).await?;
+    server
+        .add_resource_detailed(
+            ResourceInfo {
+                uri: "ws://server/".to_string(),
+                name: "WebSocket Server Resources".to_string(),
+                description: Some("WebSocket server status and connection information".to_string()),
+                mime_type: Some("application/json".to_string()),
+            },
+            WebSocketStatusHandler,
+        )
+        .await?;
 
     // Start WebSocket server
     tracing::info!("Starting WebSocket MCP server on ws://localhost:8080");
@@ -291,7 +316,9 @@ async fn main() -> McpResult<()> {
     tracing::info!("Test resources: ws://server/status, ws://server/connections");
 
     // Keep running until interrupted
-    tokio::signal::ctrl_c().await.expect("Failed to listen for ctrl+c");
+    tokio::signal::ctrl_c()
+        .await
+        .expect("Failed to listen for ctrl+c");
     server.stop().await?;
 
     Ok(())

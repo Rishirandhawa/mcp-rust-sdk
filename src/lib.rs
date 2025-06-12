@@ -16,7 +16,7 @@
 //! ### Server Example
 //!
 //! ```rust,no_run
-//! use mcp_rust_sdk::{
+//! use mcp_protocol_sdk::{
 //!     server::McpServer,
 //!     core::{tool::ToolHandler, error::McpResult},
 //!     protocol::types::{Content, ToolResult},
@@ -70,11 +70,11 @@
 //! - [`client`]: MCP client implementation and session management
 //! - [`utils`]: Utility functions and helpers
 
+pub mod client;
 pub mod core;
 pub mod protocol;
-pub mod transport;
 pub mod server;
-pub mod client;
+pub mod transport;
 pub mod utils;
 
 // Re-export commonly used types for convenience
@@ -83,16 +83,16 @@ pub use protocol::types::*;
 
 /// Prelude module for convenient imports
 pub mod prelude {
+    pub use crate::client::McpClient;
     pub use crate::core::{
         error::{McpError, McpResult},
+        prompt::{Prompt, PromptHandler},
         resource::{Resource, ResourceHandler},
         tool::{Tool, ToolHandler},
-        prompt::{Prompt, PromptHandler},
-        ResourceInfo, ToolInfo, PromptInfo,
+        PromptInfo, ResourceInfo, ToolInfo,
     };
     pub use crate::protocol::types::*;
     pub use crate::server::McpServer;
-    pub use crate::client::McpClient;
     pub use async_trait::async_trait;
     pub use serde_json::{json, Value};
     pub use std::collections::HashMap;

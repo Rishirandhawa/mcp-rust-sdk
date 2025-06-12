@@ -3,14 +3,15 @@
 //! This example demonstrates how to create an MCP client that connects to
 //! an MCP server over WebSocket for real-time bidirectional communication.
 
-use std::collections::HashMap;
 use serde_json::json;
+use std::collections::HashMap;
 
-use mcp_rust_sdk::{
-    client::{McpClient, ClientSession},
+use mcp_protocol_sdk::{
     client::session::SessionConfig,
-    transport::websocket::WebSocketClientTransport,
+    client::{ClientSession, McpClient},
     core::error::McpResult,
+    transport::websocket::WebSocketClientTransport,
+    Content,
 };
 
 #[tokio::main]
@@ -37,13 +38,14 @@ async fn main() -> McpResult<()> {
 
     // Connect to WebSocket server
     tracing::info!("Connecting to WebSocket server...");
-    
+
     let transport = WebSocketClientTransport::new("ws://localhost:8080").await?;
-    
+
     match session.connect(transport).await {
         Ok(init_result) => {
-            tracing::info!("Connected to WebSocket server: {} v{}", 
-                init_result.server_info.name, 
+            tracing::info!(
+                "Connected to WebSocket server: {} v{}",
+                init_result.server_info.name,
                 init_result.server_info.version
             );
             tracing::info!("Server capabilities: {:?}", init_result.capabilities);
@@ -66,21 +68,27 @@ async fn main() -> McpResult<()> {
     // Disconnect from the server
     tracing::info!("Disconnecting from WebSocket server...");
     session.disconnect().await?;
-    
+
     tracing::info!("WebSocket client example completed");
     Ok(())
 }
 
-async fn demonstrate_websocket_operations(client: &std::sync::Arc<tokio::sync::Mutex<McpClient>>) -> McpResult<()> {
+async fn demonstrate_websocket_operations(
+    client: &std::sync::Arc<tokio::sync::Mutex<McpClient>>,
+) -> McpResult<()> {
     // 1. List available tools
     tracing::info!("=== Listing Tools via WebSocket ===");
     {
         let client_guard = client.lock().await;
         let tools_result = client_guard.list_tools(None).await?;
-        
+
         tracing::info!("Available tools via WebSocket:");
         for tool in &tools_result.tools {
-            tracing::info!("  - {}: {}", tool.name, tool.description.as_deref().unwrap_or("No description"));
+            tracing::info!(
+                "  - {}: {}",
+                tool.name,
+                tool.description.as_deref().unwrap_or("No description")
+            );
         }
     }
 
@@ -93,12 +101,15 @@ async fn demonstrate_websocket_operations(client: &std::sync::Arc<tokio::sync::M
         args.insert("add_timestamp".to_string(), json!(true));
         args.insert("add_connection_info".to_string(), json!(true));
 
-        match client_guard.call_tool("ws_echo".to_string(), Some(args)).await {
+        match client_guard
+            .call_tool("ws_echo".to_string(), Some(args))
+            .await
+        {
             Ok(result) => {
                 tracing::info!("WebSocket Echo result:");
                 for content in &result.content {
                     match content {
-                        mcp_rust_sdk::protocol::types::Content::Text { text } => {
+                        Content::Text { text } => {
                             tracing::info!("  {}", text);
                         }
                         _ => tracing::info!("  (non-text content)"),
@@ -118,12 +129,15 @@ async fn demonstrate_websocket_operations(client: &std::sync::Arc<tokio::sync::M
         args.insert("broadcast".to_string(), json!(true));
         args.insert("add_timestamp".to_string(), json!(true));
 
-        match client_guard.call_tool("ws_echo".to_string(), Some(args)).await {
+        match client_guard
+            .call_tool("ws_echo".to_string(), Some(args))
+            .await
+        {
             Ok(result) => {
                 tracing::info!("WebSocket Broadcast result:");
                 for content in &result.content {
                     match content {
-                        mcp_rust_sdk::protocol::types::Content::Text { text } => {
+                        Content::Text { text } => {
                             tracing::info!("  {}", text);
                         }
                         _ => tracing::info!("  (non-text content)"),
@@ -143,12 +157,15 @@ async fn demonstrate_websocket_operations(client: &std::sync::Arc<tokio::sync::M
         args.insert("message".to_string(), json!("Hello everyone in the chat!"));
         args.insert("room".to_string(), json!("mcp-demo"));
 
-        match client_guard.call_tool("ws_chat".to_string(), Some(args)).await {
+        match client_guard
+            .call_tool("ws_chat".to_string(), Some(args))
+            .await
+        {
             Ok(result) => {
                 tracing::info!("WebSocket Chat result:");
                 for content in &result.content {
                     match content {
-                        mcp_rust_sdk::protocol::types::Content::Text { text } => {
+                        Content::Text { text } => {
                             tracing::info!("  {}", text);
                         }
                         _ => tracing::info!("  (non-text content)"),
@@ -165,15 +182,21 @@ async fn demonstrate_websocket_operations(client: &std::sync::Arc<tokio::sync::M
         let client_guard = client.lock().await;
         let mut args = HashMap::new();
         args.insert("username".to_string(), json!("Bob"));
-        args.insert("message".to_string(), json!("WebSocket communication is so fast!"));
+        args.insert(
+            "message".to_string(),
+            json!("WebSocket communication is so fast!"),
+        );
         args.insert("room".to_string(), json!("mcp-demo"));
 
-        match client_guard.call_tool("ws_chat".to_string(), Some(args)).await {
+        match client_guard
+            .call_tool("ws_chat".to_string(), Some(args))
+            .await
+        {
             Ok(result) => {
                 tracing::info!("WebSocket Chat (Bob) result:");
                 for content in &result.content {
                     match content {
-                        mcp_rust_sdk::protocol::types::Content::Text { text } => {
+                        Content::Text { text } => {
                             tracing::info!("  {}", text);
                         }
                         _ => tracing::info!("  (non-text content)"),
@@ -189,11 +212,12 @@ async fn demonstrate_websocket_operations(client: &std::sync::Arc<tokio::sync::M
     {
         let client_guard = client.lock().await;
         let resources_result = client_guard.list_resources(None).await?;
-        
+
         tracing::info!("Available WebSocket resources:");
         for resource in &resources_result.resources {
-            tracing::info!("  - {}: {} ({})", 
-                resource.name, 
+            tracing::info!(
+                "  - {}: {} ({})",
+                resource.name,
                 resource.uri,
                 resource.mime_type.as_deref().unwrap_or("unknown type")
             );
@@ -204,7 +228,10 @@ async fn demonstrate_websocket_operations(client: &std::sync::Arc<tokio::sync::M
     tracing::info!("=== Reading WebSocket Server Status ===");
     {
         let client_guard = client.lock().await;
-        match client_guard.read_resource("ws://server/status".to_string()).await {
+        match client_guard
+            .read_resource("ws://server/status".to_string())
+            .await
+        {
             Ok(result) => {
                 tracing::info!("WebSocket Server status:");
                 for content in &result.contents {
@@ -221,7 +248,10 @@ async fn demonstrate_websocket_operations(client: &std::sync::Arc<tokio::sync::M
     tracing::info!("=== Reading WebSocket Connections Info ===");
     {
         let client_guard = client.lock().await;
-        match client_guard.read_resource("ws://server/connections".to_string()).await {
+        match client_guard
+            .read_resource("ws://server/connections".to_string())
+            .await
+        {
             Ok(result) => {
                 tracing::info!("WebSocket connections info:");
                 for content in &result.contents {
@@ -249,19 +279,28 @@ async fn demonstrate_websocket_operations(client: &std::sync::Arc<tokio::sync::M
     {
         let client_guard = client.lock().await;
         let start = std::time::Instant::now();
-        
+
         for i in 1..=5 {
             let mut args = HashMap::new();
-            args.insert("message".to_string(), json!(format!("Speed test message #{}", i)));
-            
-            match client_guard.call_tool("ws_echo".to_string(), Some(args)).await {
+            args.insert(
+                "message".to_string(),
+                json!(format!("Speed test message #{}", i)),
+            );
+
+            match client_guard
+                .call_tool("ws_echo".to_string(), Some(args))
+                .await
+            {
                 Ok(_) => tracing::info!("Speed test #{} completed", i),
                 Err(e) => tracing::error!("Speed test #{} failed: {}", i, e),
             }
         }
-        
+
         let elapsed = start.elapsed();
-        tracing::info!("WebSocket speed test completed in {:?} (5 messages)", elapsed);
+        tracing::info!(
+            "WebSocket speed test completed in {:?} (5 messages)",
+            elapsed
+        );
     }
 
     Ok(())

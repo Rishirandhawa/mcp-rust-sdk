@@ -1,19 +1,20 @@
 [package]
-name = "mcp-rust-sdk"
+name = "mcp-protocol-sdk"
 version = "0.1.0"
 edition = "2021"
-authors = ["Rishi Randhawa <rishi.randhawa@example.com>"]
+rust-version = "1.75"  # MSRV - Conservative version for broader compatibility
+authors = ["MCP Rust SDK Contributors"]
 description = "Rust SDK for the Model Context Protocol (MCP)"
 license = "MIT"
-repository = "https://github.com/rishirandhawa/mcp-rust-sdk"
+repository = "https://github.com/Rishirandhawa/mcp-rust-sdk"
 keywords = ["mcp", "ai", "llm", "protocol", "jsonrpc"]
 categories = ["api-bindings", "network-programming", "development-tools"]
 readme = "README.md"
 homepage = "https://modelcontextprotocol.io"
-documentation = "https://docs.rs/mcp-rust-sdk"
+documentation = "https://rishirandhawa.github.io/mcp-rust-sdk/"
 
 [lib]
-name = "mcp_rust_sdk"
+name = "mcp_protocol_sdk"
 path = "src/lib.rs"
 
 [dependencies]

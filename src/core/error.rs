@@ -11,74 +11,74 @@ pub enum McpError {
     /// Transport-related errors (connection, I/O, etc.)
     #[error("Transport error: {0}")]
     Transport(String),
-    
+
     /// Protocol-level errors (invalid messages, unexpected responses, etc.)
     #[error("Protocol error: {0}")]
     Protocol(String),
-    
+
     /// JSON serialization/deserialization errors
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
-    
+
     /// Invalid URI format or content
     #[error("Invalid URI: {0}")]
     InvalidUri(String),
-    
+
     /// Requested tool was not found
     #[error("Tool not found: {0}")]
     ToolNotFound(String),
-    
+
     /// Requested resource was not found
     #[error("Resource not found: {0}")]
     ResourceNotFound(String),
-    
+
     /// Requested prompt was not found
     #[error("Prompt not found: {0}")]
     PromptNotFound(String),
-    
+
     /// Connection-related errors
     #[error("Connection error: {0}")]
     Connection(String),
-    
+
     /// Authentication/authorization errors
     #[error("Authentication error: {0}")]
     Authentication(String),
-    
+
     /// Input validation errors
     #[error("Validation error: {0}")]
     Validation(String),
-    
+
     /// I/O errors from the standard library
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
-    
+
     /// URL parsing errors
     #[error("URL error: {0}")]
     Url(#[from] url::ParseError),
-    
+
     /// HTTP-related errors when using HTTP transport
     #[cfg(feature = "http")]
     #[error("HTTP error: {0}")]
     Http(String),
-    
+
     /// WebSocket-related errors when using WebSocket transport
     #[cfg(feature = "websocket")]
     #[error("WebSocket error: {0}")]
     WebSocket(String),
-    
+
     /// JSON Schema validation errors
     #[cfg(feature = "validation")]
     #[error("Schema validation error: {0}")]
     SchemaValidation(String),
-    
+
     /// Timeout errors
     #[error("Timeout error: {0}")]
     Timeout(String),
-    
+
     /// Cancellation errors
     #[error("Operation cancelled: {0}")]
     Cancelled(String),
-    
+
     /// Internal errors that shouldn't normally occur
     #[error("Internal error: {0}")]
     Internal(String),
@@ -92,42 +92,42 @@ impl McpError {
     pub fn transport<S: Into<String>>(message: S) -> Self {
         Self::Transport(message.into())
     }
-    
+
     /// Create a new protocol error
     pub fn protocol<S: Into<String>>(message: S) -> Self {
         Self::Protocol(message.into())
     }
-    
+
     /// Create a new validation error
     pub fn validation<S: Into<String>>(message: S) -> Self {
         Self::Validation(message.into())
     }
-    
+
     /// Create a new connection error
     pub fn connection<S: Into<String>>(message: S) -> Self {
         Self::Connection(message.into())
     }
-    
+
     /// Create a new internal error
     pub fn internal<S: Into<String>>(message: S) -> Self {
         Self::Internal(message.into())
     }
-    
+
     /// Create a new IO error from std::io::Error
     pub fn io(err: std::io::Error) -> Self {
         Self::Io(err)
     }
-    
+
     /// Create a new serialization error from serde_json::Error
     pub fn serialization(err: serde_json::Error) -> Self {
         Self::Serialization(err)
     }
-    
+
     /// Create a new timeout error
     pub fn timeout<S: Into<String>>(message: S) -> Self {
         Self::Timeout(message.into())
     }
-    
+
     /// Check if this error is recoverable
     pub fn is_recoverable(&self) -> bool {
         match self {
@@ -154,7 +154,7 @@ impl McpError {
             McpError::Internal(_) => false,
         }
     }
-    
+
     /// Get the error category for logging/metrics
     pub fn category(&self) -> &'static str {
         match self {
@@ -221,7 +221,13 @@ mod tests {
     #[test]
     fn test_error_categories() {
         assert_eq!(McpError::protocol("bad message").category(), "protocol");
-        assert_eq!(McpError::ToolNotFound("missing".to_string()).category(), "not_found");
-        assert_eq!(McpError::Authentication("unauthorized".to_string()).category(), "auth");
+        assert_eq!(
+            McpError::ToolNotFound("missing".to_string()).category(),
+            "not_found"
+        );
+        assert_eq!(
+            McpError::Authentication("unauthorized".to_string()).category(),
+            "auth"
+        );
     }
 }

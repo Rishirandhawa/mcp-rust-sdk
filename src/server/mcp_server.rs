@@ -4,23 +4,19 @@
 //! manages resources, tools, and prompts, and processes JSON-RPC requests according to
 //! the Model Context Protocol specification.
 
+use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{RwLock, Mutex};
-use serde_json::Value;
+use tokio::sync::{Mutex, RwLock};
 
 use crate::core::{
     error::{McpError, McpResult},
+    prompt::{Prompt, PromptHandler},
     resource::{Resource, ResourceHandler},
     tool::{Tool, ToolHandler},
-    prompt::{Prompt, PromptHandler},
-    ResourceInfo, ToolInfo, PromptInfo,
+    PromptInfo, ResourceInfo, ToolInfo,
 };
-use crate::protocol::{
-    types::*,
-    messages::*,
-    validation::*,
-};
+use crate::protocol::{messages::*, types::*, validation::*};
 use crate::transport::traits::ServerTransport;
 
 /// Configuration for the MCP server
@@ -66,12 +62,13 @@ pub struct McpServer {
     /// Server state
     state: Arc<RwLock<ServerState>>,
     /// Request ID counter
+    #[allow(dead_code)]
     request_counter: Arc<Mutex<u64>>,
 }
 
 /// Internal server state
 #[derive(Debug, Clone, PartialEq)]
-enum ServerState {
+pub enum ServerState {
     /// Server is not yet initialized
     Uninitialized,
     /// Server is initializing
@@ -90,12 +87,16 @@ impl McpServer {
         Self {
             info: ServerInfo { name, version },
             capabilities: ServerCapabilities {
-                prompts: Some(PromptsCapability { list_changed: Some(true) }),
-                resources: Some(ResourcesCapability { 
-                    subscribe: Some(true), 
-                    list_changed: Some(true) 
+                prompts: Some(PromptsCapability {
+                    list_changed: Some(true),
                 }),
-                tools: Some(ToolsCapability { list_changed: Some(true) }),
+                resources: Some(ResourcesCapability {
+                    subscribe: Some(true),
+                    list_changed: Some(true),
+                }),
+                tools: Some(ToolsCapability {
+                    list_changed: Some(true),
+                }),
                 sampling: None,
             },
             config: ServerConfig::default(),
@@ -150,43 +151,39 @@ impl McpServer {
             description: None,
             mime_type: None,
         };
-        
+
         validate_resource_info(&resource_info)?;
-        
+
         let resource = Resource::new(resource_info, handler);
-        
+
         {
             let mut resources = self.resources.write().await;
             resources.insert(uri, resource);
         }
-        
+
         // Emit list changed notification if we have an active transport
         self.emit_resources_list_changed().await?;
-        
+
         Ok(())
     }
 
     /// Add a resource with detailed information
-    pub async fn add_resource_detailed<H>(
-        &self, 
-        info: ResourceInfo, 
-        handler: H
-    ) -> McpResult<()>
+    pub async fn add_resource_detailed<H>(&self, info: ResourceInfo, handler: H) -> McpResult<()>
     where
         H: ResourceHandler + 'static,
     {
         validate_resource_info(&info)?;
-        
+
         let uri = info.uri.clone();
         let resource = Resource::new(info, handler);
-        
+
         {
             let mut resources = self.resources.write().await;
             resources.insert(uri, resource);
         }
-        
+
         self.emit_resources_list_changed().await?;
-        
+
         Ok(())
     }
 
@@ -196,11 +193,11 @@ impl McpServer {
             let mut resources = self.resources.write().await;
             resources.remove(uri).is_some()
         };
-        
+
         if removed {
             self.emit_resources_list_changed().await?;
         }
-        
+
         Ok(removed)
     }
 
@@ -213,10 +210,10 @@ impl McpServer {
     /// Read a resource
     pub async fn read_resource(&self, uri: &str) -> McpResult<Vec<ResourceContent>> {
         let resources = self.resources.read().await;
-        
+
         match resources.get(uri) {
             Some(resource) => {
-                let params = HashMap::new(); // TODO: Extract params from URI
+                let params = HashMap::new(); // URL parameter extraction will be implemented in future versions
                 resource.handler.read(uri, &params).await
             }
             None => Err(McpError::ResourceNotFound(uri.to_string())),
@@ -229,11 +226,11 @@ impl McpServer {
 
     /// Add a tool to the server
     pub async fn add_tool<H>(
-        &self, 
-        name: String, 
-        description: Option<String>, 
-        schema: Value, 
-        handler: H
+        &self,
+        name: String,
+        description: Option<String>,
+        schema: Value,
+        handler: H,
     ) -> McpResult<()>
     where
         H: ToolHandler + 'static,
@@ -243,18 +240,23 @@ impl McpServer {
             description,
             input_schema: schema,
         };
-        
+
         validate_tool_info(&tool_info)?;
-        
-        let tool = Tool::new(name.clone(), tool_info.description.clone(), tool_info.input_schema.clone(), handler);
-        
+
+        let tool = Tool::new(
+            name.clone(),
+            tool_info.description.clone(),
+            tool_info.input_schema.clone(),
+            handler,
+        );
+
         {
             let mut tools = self.tools.write().await;
             tools.insert(name, tool);
         }
-        
+
         self.emit_tools_list_changed().await?;
-        
+
         Ok(())
     }
 
@@ -264,17 +266,22 @@ impl McpServer {
         H: ToolHandler + 'static,
     {
         validate_tool_info(&info)?;
-        
+
         let name = info.name.clone();
-        let tool = Tool::new(name.clone(), info.description.clone(), info.input_schema.clone(), handler);
-        
+        let tool = Tool::new(
+            name.clone(),
+            info.description.clone(),
+            info.input_schema.clone(),
+            handler,
+        );
+
         {
             let mut tools = self.tools.write().await;
             tools.insert(name, tool);
         }
-        
+
         self.emit_tools_list_changed().await?;
-        
+
         Ok(())
     }
 
@@ -284,11 +291,11 @@ impl McpServer {
             let mut tools = self.tools.write().await;
             tools.remove(name).is_some()
         };
-        
+
         if removed {
             self.emit_tools_list_changed().await?;
         }
-        
+
         Ok(removed)
     }
 
@@ -299,15 +306,22 @@ impl McpServer {
     }
 
     /// Call a tool
-    pub async fn call_tool(&self, name: &str, arguments: Option<HashMap<String, Value>>) -> McpResult<ToolResult> {
+    pub async fn call_tool(
+        &self,
+        name: &str,
+        arguments: Option<HashMap<String, Value>>,
+    ) -> McpResult<ToolResult> {
         let tools = self.tools.read().await;
-        
+
         match tools.get(name) {
             Some(tool) => {
                 if !tool.enabled {
-                    return Err(McpError::ToolNotFound(format!("Tool '{}' is disabled", name)));
+                    return Err(McpError::ToolNotFound(format!(
+                        "Tool '{}' is disabled",
+                        name
+                    )));
                 }
-                
+
                 let args = arguments.unwrap_or_default();
                 tool.handler.call(args).await
             }
@@ -325,17 +339,17 @@ impl McpServer {
         H: PromptHandler + 'static,
     {
         validate_prompt_info(&info)?;
-        
+
         let name = info.name.clone();
         let prompt = Prompt::new(info, handler);
-        
+
         {
             let mut prompts = self.prompts.write().await;
             prompts.insert(name, prompt);
         }
-        
+
         self.emit_prompts_list_changed().await?;
-        
+
         Ok(())
     }
 
@@ -345,11 +359,11 @@ impl McpServer {
             let mut prompts = self.prompts.write().await;
             prompts.remove(name).is_some()
         };
-        
+
         if removed {
             self.emit_prompts_list_changed().await?;
         }
-        
+
         Ok(removed)
     }
 
@@ -360,9 +374,13 @@ impl McpServer {
     }
 
     /// Get a prompt
-    pub async fn get_prompt(&self, name: &str, arguments: Option<HashMap<String, Value>>) -> McpResult<PromptResult> {
+    pub async fn get_prompt(
+        &self,
+        name: &str,
+        arguments: Option<HashMap<String, Value>>,
+    ) -> McpResult<PromptResult> {
         let prompts = self.prompts.read().await;
-        
+
         match prompts.get(name) {
             Some(prompt) => {
                 let args = arguments.unwrap_or_default();
@@ -382,14 +400,14 @@ impl McpServer {
         T: ServerTransport + 'static,
     {
         let mut state = self.state.write().await;
-        
+
         match *state {
             ServerState::Uninitialized => {
                 *state = ServerState::Initializing;
             }
             _ => return Err(McpError::Protocol("Server is already started".to_string())),
         }
-        
+
         drop(state);
 
         // Set up the transport
@@ -418,7 +436,7 @@ impl McpServer {
     /// Stop the server
     pub async fn stop(&self) -> McpResult<()> {
         let mut state = self.state.write().await;
-        
+
         match *state {
             ServerState::Running => {
                 *state = ServerState::Stopping;
@@ -426,7 +444,7 @@ impl McpServer {
             ServerState::Stopped => return Ok(()),
             _ => return Err(McpError::Protocol("Server is not running".to_string())),
         }
-        
+
         drop(state);
 
         // Stop the transport
@@ -479,11 +497,16 @@ impl McpServer {
             methods::RESOURCES_LIST => self.handle_resources_list(request.params).await,
             methods::RESOURCES_READ => self.handle_resources_read(request.params).await,
             methods::RESOURCES_SUBSCRIBE => self.handle_resources_subscribe(request.params).await,
-            methods::RESOURCES_UNSUBSCRIBE => self.handle_resources_unsubscribe(request.params).await,
+            methods::RESOURCES_UNSUBSCRIBE => {
+                self.handle_resources_unsubscribe(request.params).await
+            }
             methods::PROMPTS_LIST => self.handle_prompts_list(request.params).await,
             methods::PROMPTS_GET => self.handle_prompts_get(request.params).await,
             methods::LOGGING_SET_LEVEL => self.handle_logging_set_level(request.params).await,
-            _ => Err(McpError::Protocol(format!("Unknown method: {}", request.method))),
+            _ => Err(McpError::Protocol(format!(
+                "Unknown method: {}",
+                request.method
+            ))),
         };
 
         // Convert the result to a JSON-RPC response
@@ -509,7 +532,11 @@ impl McpServer {
     async fn handle_initialize(&self, params: Option<Value>) -> McpResult<Value> {
         let params: InitializeParams = match params {
             Some(p) => serde_json::from_value(p)?,
-            None => return Err(McpError::Validation("Missing initialize parameters".to_string())),
+            None => {
+                return Err(McpError::Validation(
+                    "Missing initialize parameters".to_string(),
+                ))
+            }
         };
 
         validate_initialize_params(&params)?;
@@ -536,7 +563,7 @@ impl McpServer {
         let tools = self.list_tools().await?;
         let result = ListToolsResult {
             tools,
-            next_cursor: None, // TODO: Implement pagination
+            next_cursor: None, // Pagination support will be added in future versions
         };
 
         Ok(serde_json::to_value(result)?)
@@ -545,7 +572,11 @@ impl McpServer {
     async fn handle_tools_call(&self, params: Option<Value>) -> McpResult<Value> {
         let params: CallToolParams = match params {
             Some(p) => serde_json::from_value(p)?,
-            None => return Err(McpError::Validation("Missing tool call parameters".to_string())),
+            None => {
+                return Err(McpError::Validation(
+                    "Missing tool call parameters".to_string(),
+                ))
+            }
         };
 
         validate_call_tool_params(&params)?;
@@ -563,7 +594,7 @@ impl McpServer {
         let resources = self.list_resources().await?;
         let result = ListResourcesResult {
             resources,
-            next_cursor: None, // TODO: Implement pagination
+            next_cursor: None, // Pagination support will be added in future versions
         };
 
         Ok(serde_json::to_value(result)?)
@@ -572,7 +603,11 @@ impl McpServer {
     async fn handle_resources_read(&self, params: Option<Value>) -> McpResult<Value> {
         let params: ReadResourceParams = match params {
             Some(p) => serde_json::from_value(p)?,
-            None => return Err(McpError::Validation("Missing resource read parameters".to_string())),
+            None => {
+                return Err(McpError::Validation(
+                    "Missing resource read parameters".to_string(),
+                ))
+            }
         };
 
         validate_read_resource_params(&params)?;
@@ -586,10 +621,14 @@ impl McpServer {
     async fn handle_resources_subscribe(&self, params: Option<Value>) -> McpResult<Value> {
         let params: SubscribeResourceParams = match params {
             Some(p) => serde_json::from_value(p)?,
-            None => return Err(McpError::Validation("Missing resource subscribe parameters".to_string())),
+            None => {
+                return Err(McpError::Validation(
+                    "Missing resource subscribe parameters".to_string(),
+                ))
+            }
         };
 
-        // TODO: Implement resource subscriptions
+        // Resource subscriptions functionality planned for future implementation
         let _uri = params.uri;
         let result = SubscribeResourceResult {};
 
@@ -599,10 +638,14 @@ impl McpServer {
     async fn handle_resources_unsubscribe(&self, params: Option<Value>) -> McpResult<Value> {
         let params: UnsubscribeResourceParams = match params {
             Some(p) => serde_json::from_value(p)?,
-            None => return Err(McpError::Validation("Missing resource unsubscribe parameters".to_string())),
+            None => {
+                return Err(McpError::Validation(
+                    "Missing resource unsubscribe parameters".to_string(),
+                ))
+            }
         };
 
-        // TODO: Implement resource subscriptions
+        // Resource subscriptions functionality planned for future implementation
         let _uri = params.uri;
         let result = UnsubscribeResourceResult {};
 
@@ -618,7 +661,7 @@ impl McpServer {
         let prompts = self.list_prompts().await?;
         let result = ListPromptsResult {
             prompts,
-            next_cursor: None, // TODO: Implement pagination
+            next_cursor: None, // Pagination support will be added in future versions
         };
 
         Ok(serde_json::to_value(result)?)
@@ -627,7 +670,11 @@ impl McpServer {
     async fn handle_prompts_get(&self, params: Option<Value>) -> McpResult<Value> {
         let params: GetPromptParams = match params {
             Some(p) => serde_json::from_value(p)?,
-            None => return Err(McpError::Validation("Missing prompt get parameters".to_string())),
+            None => {
+                return Err(McpError::Validation(
+                    "Missing prompt get parameters".to_string(),
+                ))
+            }
         };
 
         validate_get_prompt_params(&params)?;
@@ -639,10 +686,14 @@ impl McpServer {
     async fn handle_logging_set_level(&self, params: Option<Value>) -> McpResult<Value> {
         let _params: SetLoggingLevelParams = match params {
             Some(p) => serde_json::from_value(p)?,
-            None => return Err(McpError::Validation("Missing logging level parameters".to_string())),
+            None => {
+                return Err(McpError::Validation(
+                    "Missing logging level parameters".to_string(),
+                ))
+            }
         };
 
-        // TODO: Implement logging level management
+        // Logging level management feature planned for future implementation
         let result = SetLoggingLevelResult {};
         Ok(serde_json::to_value(result)?)
     }
@@ -691,6 +742,7 @@ impl McpServer {
     // Utility Methods
     // ========================================================================
 
+    #[allow(dead_code)]
     async fn next_request_id(&self) -> u64 {
         let mut counter = self.request_counter.lock().await;
         *counter += 1;
@@ -724,7 +776,7 @@ mod tests {
         });
 
         struct TestToolHandler;
-        
+
         #[async_trait::async_trait]
         impl ToolHandler for TestToolHandler {
             async fn call(&self, _arguments: HashMap<String, Value>) -> McpResult<ToolResult> {
@@ -735,12 +787,15 @@ mod tests {
             }
         }
 
-        server.add_tool(
-            "test_tool".to_string(),
-            Some("A test tool".to_string()),
-            schema,
-            TestToolHandler,
-        ).await.unwrap();
+        server
+            .add_tool(
+                "test_tool".to_string(),
+                Some("A test tool".to_string()),
+                schema,
+                TestToolHandler,
+            )
+            .await
+            .unwrap();
 
         // List tools
         let tools = server.list_tools().await.unwrap();
@@ -765,11 +820,9 @@ mod tests {
             MCP_PROTOCOL_VERSION.to_string(),
         );
 
-        let request = JsonRpcRequest::new(
-            json!(1),
-            methods::INITIALIZE.to_string(),
-            Some(init_params),
-        ).unwrap();
+        let request =
+            JsonRpcRequest::new(json!(1), methods::INITIALIZE.to_string(), Some(init_params))
+                .unwrap();
 
         let response = server.handle_request(request).await.unwrap();
         assert!(response.result.is_some());

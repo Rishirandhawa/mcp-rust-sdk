@@ -446,9 +446,15 @@ impl SamplingMessage {
     }
 }
 
+impl Default for ModelPreferences {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ModelPreferences {
     /// Create model preferences with default values
-    pub fn default() -> Self {
+    pub fn new() -> Self {
         Self {
             cost_priority: None,
             speed_priority: None,
@@ -486,17 +492,17 @@ pub const MCP_PROTOCOL_VERSION: &str = "2024-11-05";
 pub mod methods {
     /// Initialize the connection
     pub const INITIALIZE: &str = "initialize";
-    
+
     /// Ping to check connection
     pub const PING: &str = "ping";
-    
+
     /// List available tools
     pub const TOOLS_LIST: &str = "tools/list";
     /// Call a tool
     pub const TOOLS_CALL: &str = "tools/call";
     /// Notification when tool list changes
     pub const TOOLS_LIST_CHANGED: &str = "tools/list_changed";
-    
+
     /// List available resources
     pub const RESOURCES_LIST: &str = "resources/list";
     /// Read a resource
@@ -509,22 +515,22 @@ pub mod methods {
     pub const RESOURCES_UPDATED: &str = "resources/updated";
     /// Notification when resource list changes
     pub const RESOURCES_LIST_CHANGED: &str = "resources/list_changed";
-    
+
     /// List available prompts
     pub const PROMPTS_LIST: &str = "prompts/list";
     /// Get a prompt
     pub const PROMPTS_GET: &str = "prompts/get";
     /// Notification when prompt list changes
     pub const PROMPTS_LIST_CHANGED: &str = "prompts/list_changed";
-    
+
     /// Create a message using sampling
     pub const SAMPLING_CREATE_MESSAGE: &str = "sampling/createMessage";
-    
+
     /// Set logging level
     pub const LOGGING_SET_LEVEL: &str = "logging/setLevel";
     /// Log message notification
     pub const LOGGING_MESSAGE: &str = "logging/message";
-    
+
     /// Progress notification
     pub const PROGRESS: &str = "progress";
 }
@@ -558,7 +564,7 @@ mod tests {
 
         let params = CallToolParams::new("test_tool".to_string(), Some(args));
         let json = serde_json::to_value(&params).unwrap();
-        
+
         assert_eq!(json["name"], "test_tool");
         assert_eq!(json["arguments"]["param1"], "value1");
         assert_eq!(json["arguments"]["param2"], 42);
@@ -568,7 +574,7 @@ mod tests {
     fn test_sampling_message_creation() {
         let user_msg = SamplingMessage::user("Hello, world!");
         assert_eq!(user_msg.role, "user");
-        
+
         if let SamplingContent::Text(text) = user_msg.content {
             assert_eq!(text, "Hello, world!");
         } else {
