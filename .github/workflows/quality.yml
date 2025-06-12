@@ -65,6 +65,7 @@ jobs:
           wget -O scc.tar.gz https://github.com/boyter/scc/releases/download/v3.1.0/scc_Linux_x86_64.tar.gz
           tar -xzf scc.tar.gz
           sudo mv scc /usr/local/bin/
+          sudo apt-get update && sudo apt-get install -y jq
 
       - name: Run complexity analysis
         run: |
@@ -118,7 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        rust: ['1.80.0', '1.81.0']  # Test with current MSRV and newer version
+        rust: ['1.75.0', '1.76.0']  # Test with current MSRV and newer version
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
